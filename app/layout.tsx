@@ -2,6 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Space_Grotesk, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { ThemeProvider } from "@/components/theme-provider"
+import { StoreProvider } from "@/components/store-provider"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
 const spaceGrotesk = Space_Grotesk({
@@ -17,9 +20,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "CodeX — AI-Assisted UI Generation",
+  description:
+    "Generate CMS-bound React sections from wireframes, code, and prompts. Smart India Hackathon 2026.",
   icons: {
     icon: [
       {
@@ -45,9 +48,21 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <StoreProvider>
+            {children}
+            <Toaster />
+          </StoreProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>
