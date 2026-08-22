@@ -1,0 +1,119 @@
+{
+  "section": {
+    "sectionId": "7391028465",
+    "sectionName": "Hero",
+    "pageName": "Home",
+    "platform": "Website",
+    "isGenerated": true,
+    "sectionStatus": "Approved",
+    "wireframes": null,
+    "variations": 1,
+    "cardGridColumns": 3
+  },
+  "elements": [
+    {
+      "fieldId": "8472910365",
+      "sectionId": "7391028465",
+      "elementName": "brandBadge",
+      "contentType": "Text",
+      "content": "PULSE FIT",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "6204981735",
+      "sectionId": "7391028465",
+      "elementName": "headlineMain",
+      "contentType": "Text",
+      "content": "CHALLENGE YOUR LIMITS",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "9153720486",
+      "sectionId": "7391028465",
+      "elementName": "headlineSub",
+      "contentType": "Text",
+      "content": "Be a part of the tribe that's limitless.",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "3847102956",
+      "sectionId": "7391028465",
+      "elementName": "description",
+      "contentType": "Text",
+      "content": "Join trainer-led workout sessions designed to kickstart your fitness journey.",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "2059384716",
+      "sectionId": "7391028465",
+      "elementName": "heroImage",
+      "contentType": "Image",
+      "content": "/placeholder.jpg",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "4738291056",
+      "sectionId": "7391028465",
+      "elementName": "ctaButton",
+      "contentType": "Button",
+      "content": "FIND A WORKOUT",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "5920481736",
+      "sectionId": "7391028465",
+      "elementName": "statCards",
+      "contentType": "Cards",
+      "content": "",
+      "loop": [
+        { "fieldId": "1029384756", "value": "1000+", "label": "Community Members" },
+        { "fieldId": "6382910475", "value": "40+", "label": "Fitness Programmes" },
+        { "fieldId": "7591028364", "value": "150+", "label": "Fitness Channels" }
+      ],
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "1029384756",
+      "sectionId": "7391028465",
+      "elementName": "statCard1",
+      "contentType": "Text",
+      "content": "1000+",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "6382910475",
+      "sectionId": "7391028465",
+      "elementName": "statCard2",
+      "contentType": "Text",
+      "content": "40+",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    },
+    {
+      "fieldId": "7591028364",
+      "sectionId": "7391028465",
+      "elementName": "statCard3",
+      "contentType": "Text",
+      "content": "150+",
+      "loop": null,
+      "css": null,
+      "pageName": "Home"
+    }
+  ]
+}
