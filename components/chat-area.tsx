@@ -12,16 +12,68 @@ import {
   Paperclip,
   X,
   Check,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { ParticleOrb } from "@/components/particle-orb"
+import { v4 as uuid } from "uuid"
 
 export function ChatArea() {
+  const router = useRouter()
   const [isRecording, setIsRecording] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const [configDropdownOpen, setConfigDropdownOpen] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [prompt, setPrompt] = useState("")
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleSubmit = async () => {
+    if (!prompt.trim() && attachedFiles.length === 0) return
+    setIsSubmitting(true)
+
+    try {
+      // Create a new session
+      const sessionId = uuid().slice(0, 12)
+
+      // Store session data in sessionStorage for the workspace to pick up
+      const sessionData = {
+        sessionId,
+        prompt: prompt.trim(),
+        files: attachedFiles.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+        createdAt: new Date().toISOString(),
+      }
+      sessionStorage.setItem(`codex-session-${sessionId}`, JSON.stringify(sessionData))
+
+      // Navigate to workspace
+      router.push(`/workspace/${sessionId}`)
+    } catch {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      setAttachedFiles((prev) => [...prev, ...Array.from(files)])
+    }
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const removeFile = (index: number) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
 
   return (
     <main className="flex-1 flex flex-col relative overflow-hidden">
@@ -52,7 +104,7 @@ export function ChatArea() {
             className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
             onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
           >
-            ChatGPT v4.0
+            CodeX v1.0
             <ChevronDown
               className={`w-4 h-4 transition-transform duration-300 ${modelDropdownOpen ? "rotate-180" : ""}`}
             />
@@ -60,16 +112,10 @@ export function ChatArea() {
           {modelDropdownOpen && (
             <div className="dropdown-menu">
               <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                ChatGPT v4.0
+                CodeX v1.0 — UI Generator
               </button>
               <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                ChatGPT v3.5
-              </button>
-              <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                GPT-4 Turbo
-              </button>
-              <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                GPT-4 Vision
+                CodeX v0.5 — Beta
               </button>
             </div>
           )}
@@ -171,13 +217,10 @@ export function ChatArea() {
           {isRecording && (
             <div className="mb-3 input-3d bg-gradient-to-r from-black/90 via-black/95 to-black/90 backdrop-blur-xl rounded-full border border-border/50 px-6 py-3 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-300">
               <div className="flex items-center justify-between gap-6">
-                {/* Left: Recording indicator */}
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
                   <p className="text-sm font-medium text-foreground">Recording...</p>
                 </div>
-
-                {/* Center: Voice wave animation spanning full width */}
                 <div className="flex-1 flex items-center justify-center gap-[2px] h-10 overflow-hidden">
                   {[...Array(60)].map((_, i) => (
                     <div
@@ -191,8 +234,6 @@ export function ChatArea() {
                     />
                   ))}
                 </div>
-
-                {/* Right: Action buttons */}
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
                     variant="ghost"
@@ -214,20 +255,53 @@ export function ChatArea() {
             </div>
           )}
 
+          {/* Attached files */}
+          {attachedFiles.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {attachedFiles.map((file, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/30 text-sm text-foreground/80"
+                >
+                  <Paperclip className="w-3 h-3" />
+                  <span className="truncate max-w-[150px]">{file.name}</span>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="text-muted-foreground hover:text-foreground ml-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="input-3d bg-gradient-to-br from-secondary/70 via-secondary/60 to-secondary/50 backdrop-blur-xl rounded-2xl border border-border/50 p-4 shadow-2xl">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <textarea
-                  placeholder="Ask Anything..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Describe the UI you want to build... (e.g. A split-hero section with athlete image left, headline, 3 stat cards, red CTA)"
                   className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground text-lg min-h-[80px] font-normal"
                 />
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-border/30">
                 <div className="flex items-center gap-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.jsx,.tsx,.js,.ts"
+                    onChange={handleFileAttach}
+                    className="hidden"
+                  />
                   <Button
                     variant="ghost"
                     size="sm"
                     className="btn-3d gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => fileInputRef.current?.click()}
                   >
                     <Paperclip className="w-4 h-4" />
                     Attach
@@ -265,9 +339,15 @@ export function ChatArea() {
                   </Button>
                   <Button
                     size="icon"
-                    className="btn-3d btn-glow h-9 w-9 rounded-full bg-gradient-to-br from-primary via-gray-900 to-black hover:from-gray-900 hover:to-black text-white shadow-xl"
+                    disabled={isSubmitting || (!prompt.trim() && attachedFiles.length === 0)}
+                    className="btn-3d btn-glow h-9 w-9 rounded-full bg-gradient-to-br from-primary via-gray-900 to-black hover:from-gray-900 hover:to-black text-white shadow-xl disabled:opacity-40"
+                    onClick={handleSubmit}
                   >
-                    <ArrowUp className="w-5 h-5" />
+                    {isSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <ArrowUp className="w-5 h-5" />
+                    )}
                   </Button>
                 </div>
               </div>
