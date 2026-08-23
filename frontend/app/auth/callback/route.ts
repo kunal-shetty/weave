@@ -28,10 +28,11 @@ export async function GET(request: Request) {
         { onConflict: 'id' }
       );
 
+      // Redirect to the intended page (preserves /workspace/xyz or whatever was in ?next=)
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // Return the user to an error page with instructions
+  // Fallback: go to auth page with error
   return NextResponse.redirect(`${origin}/auth?error=auth_callback_error`);
 }
