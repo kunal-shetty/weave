@@ -33,14 +33,19 @@ export async function updateSession(request: NextRequest) {
   const isPublic = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p));
 
   if (!user && !isPublic) {
+    // Preserve the original URL so post-login redirects back here
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
+    url.searchParams.set('next', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
   if (user && request.nextUrl.pathname === '/auth') {
+    // After login, redirect to the intended page or home
+    const next = request.nextUrl.searchParams.get('next') || '/';
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = next;
+    url.searchParams.delete('next');
     return NextResponse.redirect(url);
   }
 
