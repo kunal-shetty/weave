@@ -36,34 +36,104 @@ export function WorkspaceContent() {
   const router = useRouter();
   const sessionId = (params?.sessionId as string) || '';
   const supabase = createClient();
-  const generatedRef = useRef(false);
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [loadingFromDb, setLoadingFromDb] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Panel visibility: only 2 at a time, center always visible
-  // "preview" = right panel, "members" = left panel
   const [activeSide, setActiveSide] = useState<'preview' | 'members'>('preview');
   const [leftWidth, setLeftWidth] = useState(280);
-  const [rightWidth, setRightWidth] = useState(460);
+  const [chatWidth, setChatWidth] = useState(340);
   const [now, setNow] = useState('');
 
-  // Progressive HTML for real-time preview rendering
   const [progressiveHtml, setProgressiveHtml] = useState<string | null>(null);
 
+  // Load session — try sessionStorage first, then MongoDB with retry
   useEffect(() => {
-    const stored = sessionStorage.getItem(`codex-session-${sessionId}`);
-    if (stored) {
-      setSession(JSON.parse(stored));
-    } else {
-      router.push('/');
-      return;
-    }
+    if (!sessionId) return;
+    let cancelled = false;
 
-    // Try to load existing generated content from MongoDB
-    fetchExistingSession();
-  }, [sessionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
+    const loadSession = async () => {
+      // 1. Try sessionStorage (instant, same device)
+      const stored = sessionStorage.getItem(`codex-session-${sessionId}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setSession(parsed);
+          // Also try to load HTML from DB
+          fetchHtmlFromDb();
+          return;
+        } catch {
+          // corrupted sessionStorage, clear and fetch from DB
+          sessionStorage.removeItem(`codex-session-${sessionId}`);
+        }
+      }
+
+      // 2. Try MongoDB with retry
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`[Workspace] Fetching session from DB (attempt ${attempt})...`);
+          const res = await fetch(`${API}/api/sessions/${sessionId}`);
+
+          if (res.ok) {
+            const data = await res.json();
+            console.log('[Workspace] Session data from DB:', { prompt: data.prompt, hasHtml: !!data.htmlContent, fileCount: data.files?.length });
+
+            if (data && data.prompt) {
+              const dbSession: SessionData = {
+                sessionId: data.sessionId,
+                prompt: data.prompt,
+                files: data.files || [],
+                createdAt: data.createdAt || new Date().toISOString(),
+              };
+              if (!cancelled) {
+                setSession(dbSession);
+                sessionStorage.setItem(`codex-session-${sessionId}`, JSON.stringify(dbSession));
+                if (data.htmlContent) {
+                  setPreviewHtml(data.htmlContent);
+                }
+              }
+              return;
+            }
+          }
+
+          if (res.status === 404) {
+            console.warn('[Workspace] Session not found in DB');
+            break; // Don't retry 404
+          }
+        } catch (err) {
+          console.warn(`[Workspace] Fetch attempt ${attempt} failed:`, err);
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * attempt)); // backoff
+          }
+        }
+      }
+
+      // 3. Not found anywhere
+      if (!cancelled) {
+        console.warn('[Workspace] Session not found, showing error');
+        setLoadError('Session not found. It may not have been saved yet.');
+      }
+    };
+
+    loadSession();
+    return () => { cancelled = true; };
+  }, [sessionId, API]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch existing generated HTML from MongoDB (when loaded from sessionStorage)
+  const fetchHtmlFromDb = async () => {
+    try {
+      const res = await fetch(`${API}/api/sessions/${sessionId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.htmlContent) {
+          setPreviewHtml(data.htmlContent);
+        }
+      }
+    } catch (err) {
+      console.warn('[Workspace] Could not fetch HTML:', err);
+    }
+  };
 
   // Clock
   useEffect(() => {
@@ -73,26 +143,6 @@ export function WorkspaceContent() {
     return () => clearInterval(id);
   }, []);
 
-  // Load existing session from MongoDB
-  const fetchExistingSession = async () => {
-    try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.htmlContent) {
-          setPreviewHtml(data.htmlContent);
-          setLoadingFromDb(false);
-          generatedRef.current = true;
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Could not fetch existing session:', err);
-    }
-    setLoadingFromDb(false);
-  };
-
-  // Save to MongoDB after generation
   const saveToDb = useCallback(async (html: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -112,56 +162,70 @@ export function WorkspaceContent() {
         }),
       });
     } catch (err) {
-      console.warn('Failed to save session to DB:', err);
+      console.warn('[Workspace] Failed to save to DB:', err);
     }
   }, [API, sessionId, session, supabase]);
 
   const handlePreviewReady = useCallback((html: string) => {
     setPreviewHtml(html);
-    setProgressiveHtml(null); // clear progressive — final is loaded
+    setProgressiveHtml(null);
     saveToDb(html);
   }, [saveToDb]);
 
-  // Progressive HTML updates (line-by-line streaming feel)
   const handleProgressiveHtml = useCallback((html: string) => {
     setProgressiveHtml(html);
   }, []);
 
-  // Toggle side panels — only 2 at a time
-  const toggleLeft = () => {
-    setActiveSide((prev) => (prev === 'members' ? 'preview' : 'members'));
-  };
-  const toggleRight = () => {
-    setActiveSide((prev) => (prev === 'preview' ? 'members' : 'preview'));
-  };
+  const toggleLeft = () => setActiveSide((prev) => (prev === 'members' ? 'preview' : 'members'));
+  const toggleRight = () => setActiveSide((prev) => (prev === 'preview' ? 'members' : 'preview'));
 
-  // Drag-to-resize
-  const startResize = (side: 'left' | 'right') => (e: React.MouseEvent) => {
+  const startResizeChat = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startW = side === 'left' ? leftWidth : rightWidth;
-    const onMove = (ev: MouseEvent) => {
-      const delta = ev.clientX - startX;
-      if (side === 'left') {
-        setLeftWidth(Math.max(220, Math.min(420, startW + delta)));
-      } else {
-        setRightWidth(Math.max(340, Math.min(640, startW - delta)));
-      }
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+    const startW = chatWidth;
+    const onMove = (ev: MouseEvent) => setChatWidth(Math.max(280, Math.min(520, startW + (ev.clientX - startX))));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const startResizeLeft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = leftWidth;
+    const onMove = (ev: MouseEvent) => setLeftWidth(Math.max(220, Math.min(420, startW + (ev.clientX - startX))));
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
   const leftOpen = activeSide === 'members';
   const rightOpen = activeSide === 'preview';
-
-  // The HTML to show in preview: final or progressive
   const displayHtml = previewHtml || progressiveHtml;
 
+  // Error state
+  if (loadError) {
+    return (
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
+        <ShaderBackground />
+        <div className="relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 grid place-items-center">
+            <span className="text-2xl">⚠</span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground/80">{loadError}</p>
+            <p className="text-xs text-muted-foreground mt-1.5">Session ID: {sessionId}</p>
+          </div>
+          <Link href="/"
+            className="px-4 py-2 rounded-xl bg-secondary/50 border border-border/30 text-xs font-medium text-foreground/70 hover:text-foreground hover:bg-secondary transition-all cursor-pointer">
+            Back to home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
   if (!session) {
     return (
       <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
@@ -184,64 +248,64 @@ export function WorkspaceContent() {
       <ShaderBackground />
 
       {/* Top Bar */}
-      <header className="relative z-20 h-14 flex items-center justify-between px-3 shrink-0 border-b border-border/30 backdrop-blur-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/20">
+      <header className="relative z-20 h-12 flex items-center justify-between px-3 shrink-0 border-b border-border/30 backdrop-blur-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/20">
         <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-border/50 to-transparent opacity-50" />
 
         <div className="flex items-center gap-2 min-w-0">
           <Link href="/" className="group/back relative p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all active:scale-90" aria-label="Back to home">
-            <ArrowLeft className="w-4 h-4 transition-transform group-hover/back:-translate-x-0.5" />
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover/back:-translate-x-0.5" />
           </Link>
-          <div className="h-5 w-px bg-border/50" />
+          <div className="h-4 w-px bg-border/50" />
           <button onClick={toggleLeft}
             className={cn('p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer active:scale-90', leftOpen && 'bg-secondary/40 text-foreground/70')}
             aria-label="Toggle members panel">
-            {leftOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            {leftOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="relative w-6 h-6 rounded-md bg-gradient-to-br from-primary/15 to-primary/5 border border-border/30 grid place-items-center shrink-0">
-              <Sparkles className="w-3 h-3 text-foreground" />
+            <div className="relative w-5 h-5 rounded-md bg-gradient-to-br from-primary/15 to-primary/5 border border-border/30 grid place-items-center shrink-0">
+              <Sparkles className="w-2.5 h-2.5 text-foreground" />
               <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 border border-background" />
             </div>
-            <h1 className="text-xs font-medium text-foreground font-[var(--font-heading)] truncate max-w-[280px]">{session.prompt}</h1>
+            <h1 className="text-[11px] font-medium text-foreground font-[var(--font-heading)] truncate max-w-[320px]">{session.prompt}</h1>
           </div>
         </div>
 
-        {/* Center status */}
         <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/30 border border-border/30">
-            <CircleDot className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-            <span className="text-[10px] text-muted-foreground font-mono tracking-wider uppercase">Live session</span>
-            <span className="text-[10px] text-muted-foreground/50 font-mono">·</span>
-            <span className="text-[10px] text-muted-foreground font-mono tabular-nums">{now}</span>
+            <CircleDot className="w-2 h-2 text-emerald-400 animate-pulse" />
+            <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase">Live</span>
+            <span className="text-[9px] text-muted-foreground/50 font-mono">·</span>
+            <span className="text-[9px] text-muted-foreground font-mono tabular-nums">{now}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {previewHtml && (
             <>
               <a href={`data:text/html,${encodeURIComponent(previewHtml)}`} target="_blank" rel="noopener noreferrer"
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer"
                 title="Open preview in new tab">
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
               <Link href={`/edit/${sessionId}`}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer"
                 title="Edit content">
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5" />
               </Link>
             </>
           )}
           <button onClick={toggleRight}
             className={cn('p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer active:scale-90', rightOpen && 'bg-secondary/40 text-foreground/70')}
             aria-label="Toggle preview panel">
-            {rightOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            {rightOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
           </button>
         </div>
       </header>
 
-      {/* 3-Panel Layout — only 2 visible at a time, center always */}
+      {/* Layout: Members(optional) | Chat | Preview (dominant) */}
       <div className="relative z-10 flex-1 flex overflow-hidden">
-        {/* Left: Members / Tasks / Profile */}
+
+        {/* Left: Members / Tasks / Profile (optional) */}
         <div className={cn(
           'relative shrink-0 overflow-hidden border-r border-border/30 transition-all duration-500 ease-out',
           leftOpen ? 'opacity-100' : 'w-0 opacity-0 border-r-0'
@@ -250,11 +314,12 @@ export function WorkspaceContent() {
           <div className="h-full transition-transform duration-500" style={{ transform: leftOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
             <PanelMembers sessionId={sessionId} />
           </div>
-          {leftOpen && <ResizeHandle onMouseDown={startResize('left')} side="right" />}
+          {leftOpen && <ResizeHandle onMouseDown={startResizeLeft} side="right" />}
         </div>
 
-        {/* Center: Agent — always visible, takes remaining space */}
-        <div className="flex-1 min-w-0 relative overflow-hidden">
+        {/* Center: Chat (narrower, left side) */}
+        <div className="relative shrink-0 overflow-hidden border-r border-border/30"
+          style={{ width: chatWidth }}>
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/10 to-background/30 backdrop-blur-sm" />
           <div className="relative h-full">
             <PanelAgent
@@ -266,18 +331,12 @@ export function WorkspaceContent() {
               skipInitialGeneration={!!previewHtml}
             />
           </div>
+          <ResizeHandle onMouseDown={startResizeChat} side="right" />
         </div>
 
-        {/* Right: Preview */}
-        <div className={cn(
-          'relative shrink-0 overflow-hidden transition-all duration-500 ease-out',
-          rightOpen ? 'opacity-100' : 'w-0 opacity-0'
-        )}
-          style={{ width: rightOpen ? rightWidth : 0 }}>
-          <div className="h-full transition-transform duration-500" style={{ transform: rightOpen ? 'translateX(0)' : 'translateX(100%)' }}>
-            <PanelPreview previewHtml={displayHtml} sessionId={sessionId} />
-          </div>
-          {rightOpen && <ResizeHandle onMouseDown={startResize('right')} side="left" />}
+        {/* Right: Preview (takes remaining space — always dominant) */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <PanelPreview previewHtml={displayHtml} sessionId={sessionId} />
         </div>
       </div>
     </div>
