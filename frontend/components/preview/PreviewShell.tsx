@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store';
 import { fetchElementsByPage } from '@/store/slices/cmsSlice';
@@ -8,12 +8,12 @@ import { useSocket } from '@/hooks/useSocket';
 import { CMSEditor } from './CMSEditor';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { buildPreviewHtml } from '@/lib/buildPreviewHtml';
 import {
   Monitor, Smartphone, Edit3, Eye, RefreshCw,
   CheckCircle, XCircle, Clock, Wifi, WifiOff, ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 
 interface Section {
   sectionId: string;
@@ -305,40 +305,57 @@ function EmptyPreview({ pageName }: { pageName: string }) {
 }
 
 function LiveSectionPreview({ section, pageName }: { section: Section; pageName: string }) {
-  // The generated JSX is displayed as code since it requires a dynamic import
-  // In production, use a sandboxed iframe or transpile server-side
+  const dispatch = useDispatch<AppDispatch>();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const allSections = useSelector((s: RootState) => s.cms.allSections);
+  const allSectionsCss = useSelector((s: RootState) => s.cms.allSectionsCss);
+
+  // Build HTML from Redux element data
+  const elements = allSections[pageName] || {};
+  const cssOverrides = allSectionsCss[pageName] || {};
+
+  const previewHtml = useMemo(
+    () => buildPreviewHtml(elements, cssOverrides, section.accentColor),
+    [elements, cssOverrides, section.accentColor],
+  );
+
+  // Write HTML into iframe whenever it changes
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    doc.open();
+    doc.write(previewHtml);
+    doc.close();
+  }, [previewHtml]);
+
+  // If no elements loaded yet, fetch them
+  useEffect(() => {
+    if (Object.keys(elements).length === 0) {
+      dispatch(fetchElementsByPage(pageName));
+    }
+  }, [pageName, dispatch, elements]);
+
   return (
-    <div className="min-h-screen">
-      {/* If last job matches, show the generated section info */}
-      <div className="p-6 border-b border-border/30">
-        <div className="flex items-center gap-3 mb-3">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: section.accentColor }}
-          />
-          <span className="text-sm font-medium text-foreground">{section.sectionName}</span>
-          <span className="text-xs text-muted-foreground">— {section.pageName}</span>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Section ID: <span className="font-mono">{section.sectionId}</span>
-        </p>
+    <div className="h-full flex flex-col">
+      {/* Section info bar */}
+      <div className="px-4 py-2 border-b border-border/30 flex items-center gap-3 shrink-0">
+        <div
+          className="w-3 h-3 rounded-full"
+          style={{ backgroundColor: section.accentColor }}
+        />
+        <span className="text-sm font-medium text-foreground">{section.sectionName}</span>
+        <span className="text-xs text-muted-foreground">— {section.pageName}</span>
+        <span className="text-xs text-muted-foreground font-mono">v{section.variations}</span>
       </div>
 
-      {/* Generated JSX preview (syntax highlighted display) */}
-      <div className="p-6">
-        <div className="rounded-xl bg-secondary/20 border border-border/30 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-secondary/30">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-red-500/70" />
-              <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
-              <div className="w-3 h-3 rounded-full bg-green-500/70" />
-            </div>
-            <span className="text-xs text-muted-foreground ml-2">{section.sectionName}.tsx</span>
-          </div>
-          <pre className="p-4 text-xs text-muted-foreground overflow-x-auto max-h-[60vh] whitespace-pre-wrap font-mono leading-relaxed">
-            {section.generatedJsx || '/* No JSX generated yet */'}
-          </pre>
-        </div>
+      {/* Live rendered preview in iframe */}
+      <div className="flex-1 overflow-hidden bg-[#0a0a0a]">
+        <iframe
+          ref={iframeRef}
+          className="w-full h-full border-0"
+          style={{ border: 'none', overflow: 'auto' }}
+          title="Section Preview"
+        />
       </div>
     </div>
   );
