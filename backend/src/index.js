@@ -13,6 +13,8 @@ import geminiRoutes from './routes/gemini.js';
 import geminiTestRoutes from './routes/gemini-test.js';
 import sessionsRoutes from './routes/sessions.js';
 import workspaceMembersRoutes from './routes/workspace-members.js';
+import reviewRoutes from './routes/reviews.js';
+import wireframeAnalysisRoutes from './routes/wireframe-analysis.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupSocketIO } from './config/socket.js';
 
@@ -50,6 +52,8 @@ app.use('/api/gemini', geminiRoutes);
 app.use('/api/gemini', geminiTestRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/workspace-members', workspaceMembersRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/reviews', wireframeAnalysisRoutes);
 
 // Error handler
 app.use(errorHandler);
