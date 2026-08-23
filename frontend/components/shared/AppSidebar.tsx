@@ -1,25 +1,60 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wand2, Eye, LayoutGrid, Clock, Zap, Crown, LogOut,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, User, FolderOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/workspace/collapsible-section';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
-import { useUser, useClerk } from '@clerk/nextjs';
 import { RootState } from '@/store';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupaUser } from '@supabase/supabase-js';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const jobHistory = useSelector((s: RootState) => s.studio.jobHistory);
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const supabase = createClient();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState<SupaUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data }) => setProfile(data));
+      }
+    });
+  }, [supabase]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/auth');
+  };
+
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'User';
+  const displayEmail = profile?.email || user?.email || '';
+  const avatarUrl = profile?.avatar_url || null;
 
   return (
     <aside
@@ -66,6 +101,18 @@ export function AppSidebar() {
       {/* Collapsed: icon-only nav */}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 py-3 px-1">
+          <Link href="/" title="Dashboard">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-10 w-10 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent',
+                pathname === '/' && 'bg-sidebar-accent text-sidebar-foreground'
+              )}
+            >
+              <User className="w-4 h-4" />
+            </Button>
+          </Link>
           <Link href="/generate" title="Generator Studio">
             <Button
               variant="ghost"
@@ -111,13 +158,24 @@ export function AppSidebar() {
       ) : (
         /* Expanded: full nav with collapsible sections */
         <div className="px-3 py-4 flex-1 overflow-y-auto space-y-2">
-          {/* Studio Section */}
+          {/* Profile Section */}
           <CollapsibleSection
-            title="Studio"
-            icon={<Wand2 className="w-3.5 h-3.5" />}
+            title="My Profile"
+            icon={<User className="w-3.5 h-3.5" />}
             defaultOpen={true}
           >
             <div className="space-y-1 px-1">
+              <Link href="/">
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    'btn-3d w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent font-medium',
+                    pathname === '/' && 'bg-sidebar-accent'
+                  )}
+                >
+                  <User className="w-4 h-4" /> Dashboard
+                </Button>
+              </Link>
               <Link href="/generate">
                 <Button
                   variant="ghost"
@@ -143,21 +201,17 @@ export function AppSidebar() {
             </div>
           </CollapsibleSection>
 
-          {/* Recent Jobs Section */}
-          {jobHistory.length > 0 && (
-            <CollapsibleSection
-              title="Recent Jobs"
-              subtitle={`${jobHistory.length} job${jobHistory.length > 1 ? 's' : ''}`}
-              icon={<Clock className="w-3.5 h-3.5" />}
-              badge={
-                <span className="text-[9px] text-muted-foreground font-mono px-1.5 py-0.5 rounded bg-sidebar-accent border border-sidebar-border">
-                  {jobHistory.length}
-                </span>
-              }
-              defaultOpen={true}
-            >
-              <div className="space-y-1 px-1">
-                {jobHistory.map((job) => (
+          {/* Projects Section */}
+          <CollapsibleSection
+            title="Projects"
+            icon={<FolderOpen className="w-3.5 h-3.5" />}
+            defaultOpen={true}
+          >
+            <div className="space-y-1 px-1">
+              {jobHistory.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-3 py-2">No projects yet. Start generating!</p>
+              ) : (
+                jobHistory.map((job) => (
                   <Link key={job.id} href={`/preview/${job.pageName}`}>
                     <Button
                       variant="ghost"
@@ -167,10 +221,10 @@ export function AppSidebar() {
                       <span className="truncate">{job.sectionName}</span>
                     </Button>
                   </Link>
-                ))}
-              </div>
-            </CollapsibleSection>
-          )}
+                ))
+              )}
+            </div>
+          </CollapsibleSection>
         </div>
       )}
 
@@ -197,32 +251,32 @@ export function AppSidebar() {
       {user && (
         <div className={cn('border-t border-sidebar-border', collapsed ? 'p-2' : 'p-3')}>
           <div className={cn('flex items-center gap-3', collapsed ? 'justify-center' : '')}>
-            {user.imageUrl ? (
+            {avatarUrl ? (
               <img
-                src={user.imageUrl}
+                src={avatarUrl}
                 alt=""
                 className="w-8 h-8 rounded-full border border-sidebar-border object-cover shrink-0"
               />
             ) : (
               <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-sidebar-foreground shrink-0">
-                {(user.firstName?.[0] || user.emailAddresses[0]?.emailAddress?.[0] || '?').toUpperCase()}
+                {displayName[0]?.toUpperCase() || '?'}
               </div>
             )}
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-sidebar-foreground truncate">
-                    {user.fullName || user.firstName || 'User'}
+                    {displayName}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {user.emailAddresses[0]?.emailAddress}
+                    {displayEmail}
                   </p>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                  onClick={() => signOut({ redirectUrl: '/auth' })}
+                  onClick={handleSignOut}
                   title="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -234,7 +288,7 @@ export function AppSidebar() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                onClick={() => signOut({ redirectUrl: '/auth' })}
+                onClick={handleSignOut}
                 title="Sign out"
               >
                 <LogOut className="w-3 h-3" />
