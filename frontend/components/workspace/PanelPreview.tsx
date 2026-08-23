@@ -31,7 +31,7 @@ export function PanelPreview({ previewHtml, sessionId }: { previewHtml: string |
     if (!doc) return;
 
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a0a;color:white;font-family:system-ui,-apple-system,sans-serif;padding:0;overflow-y:auto;overflow-x:hidden}::-webkit-scrollbar{display:none}body{-ms-overflow-style:none;scrollbar-width:none}</style></head><body>${previewHtml}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{height:100%!important;margin:0;padding:0;overflow-y:auto!important;overflow-x:hidden!important;background:#0a0a0a;color:white;font-family:system-ui,-apple-system,sans-serif}*,*::before,*::after{box-sizing:border-box}::-webkit-scrollbar{display:none}body{-ms-overflow-style:none;scrollbar-width:none}</style></head><body>${previewHtml}</body></html>`);
     doc.close();
   }, [previewHtml, iframeKey]);
 
@@ -114,7 +114,7 @@ export function PanelPreview({ previewHtml, sessionId }: { previewHtml: string |
               device === 'tablet' && 'w-[768px] max-w-full border-x border-border/30',
               device === 'mobile' && 'w-[375px] border-x border-border/30'
             )}>
-              <iframe ref={iframeRef} key={iframeKey} className="w-full h-full bg-background scrollbar-none" style={{ border: 'none' }} title="Preview" />
+              <iframe ref={iframeRef} key={iframeKey} className="w-full h-full bg-background scrollbar-none" style={{ border: 'none', overflow: 'auto' }} title="Preview" />
             </div>
           </div>
         ) : (
