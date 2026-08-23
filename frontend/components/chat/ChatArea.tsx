@@ -9,9 +9,13 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ParticleOrb } from '@/components/shared/particle-orb';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
+import { createClient } from '@/lib/supabase/client';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export function ChatArea() {
   const router = useRouter();
+  const supabase = createClient();
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -26,10 +30,9 @@ export function ChatArea() {
     setIsSubmitting(true);
 
     try {
-      // Create a unique session ID
       const sessionId = crypto.randomUUID().slice(0, 12);
 
-      // Convert attached files to base64 for sending to LLM
+      // Convert attached files to base64
       const fileData = await Promise.all(
         attachedFiles.map(async (f) => {
           const buffer = await f.arrayBuffer();
@@ -45,16 +48,40 @@ export function ChatArea() {
         })
       );
 
-      // Store session data in sessionStorage for the workspace to pick up
       const sessionData = {
         sessionId,
         prompt: prompt.trim(),
         files: fileData,
         createdAt: new Date().toISOString(),
       };
+
+      // Save to sessionStorage (for instant access on same device)
       sessionStorage.setItem(`codex-session-${sessionId}`, JSON.stringify(sessionData));
 
-      // Navigate to workspace
+      // Save to MongoDB (for cross-device/cross-account access)
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await fetch(`${API}/api/sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              userId: user.id,
+              email: user.email,
+              fullName: user.user_metadata?.full_name || user.user_metadata?.name,
+              avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+              prompt: prompt.trim(),
+              files: fileData,
+              fileCount: fileData.length,
+            }),
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to save session to DB:', err);
+        // Continue anyway — sessionStorage is the fallback
+      }
+
       router.push(`/workspace/${sessionId}`);
     } catch {
       setIsSubmitting(false);
