@@ -6,6 +6,8 @@ import { upsertSectionMeta, bulkUpsertElementMeta, setFieldKV } from '../service
 import { emitDiffUpdate } from '../config/socket.js';
 import Section from '../models/Section.js';
 import Element from '../models/Element.js';
+import ReviewItem from '../models/ReviewItem.js';
+import { nanoid } from 'nanoid';
 
 /**
  * POST /api/generate
@@ -101,6 +103,42 @@ export async function generate(req, res) {
     finalSpecs = merged;
     diffResult = diff;
     emitDiffUpdate(req.io, sectionId, diff);
+
+    // Auto-create review items from diff
+    const reviewItems = [];
+    for (const name of diff.added) {
+      const spec = merged.find((s) => s.elementName === name);
+      reviewItems.push({
+        reviewId: `rev_${nanoid(12)}`, sessionId: null, sectionId,
+        type: 'new_element', confidence: 70, status: 'pending',
+        elementName: name, newContent: spec?.content || '', createdBy: 'system',
+      });
+    }
+    for (const name of diff.removed) {
+      const existing = existingElements.find((e) => e.elementName === name);
+      reviewItems.push({
+        reviewId: `rev_${nanoid(12)}`, sessionId: null, sectionId,
+        type: 'removed_element', confidence: 90, status: 'pending',
+        elementName: name, previousContent: existing?.content || '', createdBy: 'system',
+      });
+    }
+    for (const name of diff.unchanged) {
+      const existing = existingElements.find((e) => e.elementName === name);
+      const spec = merged.find((s) => s.elementName === name);
+      if (existing && spec && existing.content !== spec.content) {
+        reviewItems.push({
+          reviewId: `rev_${nanoid(12)}`, sessionId: null, sectionId,
+          type: 'field_change', confidence: 60, status: 'pending',
+          elementName: name, fieldId: existing.fieldId,
+          previousContent: existing.content, newContent: spec.content, createdBy: 'system',
+        });
+      }
+    }
+    if (reviewItems.length > 0) {
+      ReviewItem.insertMany(reviewItems).catch((err) =>
+        console.warn('[Generate] Failed to create review items:', err.message)
+      );
+    }
   }
 
   // Persist section to MongoDB
