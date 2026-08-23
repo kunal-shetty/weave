@@ -29,11 +29,27 @@ export function ChatArea() {
       // Create a unique session ID
       const sessionId = crypto.randomUUID().slice(0, 12);
 
+      // Convert attached files to base64 for sending to LLM
+      const fileData = await Promise.all(
+        attachedFiles.map(async (f) => {
+          const buffer = await f.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          return {
+            name: f.name,
+            type: f.type,
+            size: f.size,
+            base64,
+          };
+        })
+      );
+
       // Store session data in sessionStorage for the workspace to pick up
       const sessionData = {
         sessionId,
         prompt: prompt.trim(),
-        files: attachedFiles.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+        files: fileData,
         createdAt: new Date().toISOString(),
       };
       sessionStorage.setItem(`codex-session-${sessionId}`, JSON.stringify(sessionData));
@@ -142,15 +158,18 @@ export function ChatArea() {
 
         {/* Quick Actions */}
         <div className="flex items-center gap-3 mb-8">
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium">
+          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+            onClick={() => { setPrompt('Create a hero section with an athlete image on the left, bold headline, 3 stat cards, and a red CTA button.'); }}>
             <ImageIcon className="w-4 h-4" />
             Create Image
           </Button>
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium">
+          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+            onClick={() => { setPrompt('Brainstorm a landing page layout for a fitness brand with modern dark theme and gradient accents.'); }}>
             <Lightbulb className="w-4 h-4" />
             Brainstorm
           </Button>
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium">
+          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+            onClick={() => { setPrompt('Make a plan for a multi-section landing page: hero, features grid, testimonials, pricing, and footer.'); }}>
             <FileText className="w-4 h-4" />
             Make a plan
           </Button>
