@@ -5,6 +5,8 @@ import { buildElementSpecs, diffMerge } from '../services/diffMerge.js';
 import { generateFieldId, generateFieldIds } from '../utils/fieldId.js';
 import { upsertSectionMeta, bulkUpsertElementMeta } from '../services/supabaseMeta.js';
 import { emitDiffUpdate } from '../config/socket.js';
+import ReviewItem from '../models/ReviewItem.js';
+import { nanoid } from 'nanoid';
 
 export async function listSections(req, res) {
   const sections = await Section.find().sort({ createdAt: -1 }).lean();
@@ -46,6 +48,74 @@ export async function regenerateSection(req, res) {
   const { merged, diff } = diffMerge(existingElements, elementSpecs);
 
   emitDiffUpdate(req.io, sectionId, diff);
+
+  // Auto-create review items from diff results
+  const sessionId = section.sessionId || null;
+  const reviewItems = [];
+  for (const name of diff.added) {
+    const spec = merged.find((s) => s.elementName === name);
+    reviewItems.push({
+      reviewId: `rev_${nanoid(12)}`,
+      sessionId,
+      sectionId,
+      type: 'new_element',
+      confidence: 70,
+      status: 'pending',
+      elementName: name,
+      newContent: spec?.content || '',
+      createdBy: 'system',
+    });
+  }
+  for (const name of diff.removed) {
+    const existing = existingElements.find((e) => e.elementName === name);
+    reviewItems.push({
+      reviewId: `rev_${nanoid(12)}`,
+      sessionId,
+      sectionId,
+      type: 'removed_element',
+      confidence: 90,
+      status: 'pending',
+      elementName: name,
+      previousContent: existing?.content || '',
+      createdBy: 'system',
+    });
+  }
+  for (const name of diff.unchanged) {
+    const existing = existingElements.find((e) => e.elementName === name);
+    const spec = merged.find((s) => s.elementName === name);
+    if (existing && spec && existing.content !== spec.content) {
+      reviewItems.push({
+        reviewId: `rev_${nanoid(12)}`,
+        sessionId,
+        sectionId,
+        type: 'field_change',
+        confidence: 60,
+        status: 'pending',
+        elementName: name,
+        fieldId: existing.fieldId,
+        previousContent: existing.content,
+        newContent: spec.content,
+        createdBy: 'system',
+      });
+    }
+  }
+  if (diff.reordered) {
+    reviewItems.push({
+      reviewId: `rev_${nanoid(12)}`,
+      sessionId,
+      sectionId,
+      type: 'reordered',
+      confidence: 80,
+      status: 'pending',
+      notes: `Elements reordered: ${diff.unchanged.join(', ')}`,
+      createdBy: 'system',
+    });
+  }
+  if (reviewItems.length > 0) {
+    ReviewItem.insertMany(reviewItems).catch((err) =>
+      console.warn('[Regenerate] Failed to create review items:', err.message)
+    );
+  }
 
   // Update section
   section.generatedJsx = generatedJsx;
