@@ -1,11 +1,7 @@
 'use client';
 
-import { ChatArea } from '@/components/chat/ChatArea';
+import { HomeShell } from '@/components/home/HomeShell';
 
 export default function Home() {
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      <ChatArea />
-    </div>
-  );
+  return <HomeShell />;
 }
