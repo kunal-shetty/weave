@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import GeneratedSession from '../models/GeneratedSession.js';
 import WorkspaceMember from '../models/WorkspaceMember.js';
+import { emitWorkspaceUpdate, emitChatMessage } from '../config/socket.js';
 
 const router = Router();
 
@@ -46,7 +47,11 @@ router.post('/', async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     );
 
-    // Auto-add the creator as owner
+    // Auto-add the creator as owner ONLY if no owner exists yet for this session.
+    // Single-owner rule: every workspace has exactly one owner; everyone else is 'member'.
+    const existingOwner = await WorkspaceMember.findOne({ sessionId, role: 'owner', status: { $ne: 'removed' } });
+    const role = existingOwner ? 'member' : 'owner';
+
     await WorkspaceMember.findOneAndUpdate(
       { sessionId, userId },
       {
@@ -55,7 +60,7 @@ router.post('/', async (req, res) => {
         email: email || '',
         fullName: fullName || null,
         avatarUrl: avatarUrl || null,
-        role: 'owner',
+        role,
         status: 'active',
       },
       { upsert: true }
@@ -72,7 +77,7 @@ router.post('/', async (req, res) => {
 router.post('/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { userId, email, fullName, avatarUrl, prompt, htmlContent, files, fileCount = 0 } = req.body;
+    const { userId, email, fullName, avatarUrl, prompt, htmlContent, files, fileCount = 0, clientId } = req.body;
 
     if (!userId || !htmlContent) {
       return res.status(400).json({ error: 'userId and htmlContent are required' });
@@ -93,7 +98,10 @@ router.post('/:sessionId', async (req, res) => {
       { upsert: true, new: true, runValidators: true }
     );
 
-    // Auto-add the creator as owner
+    // Single-owner rule: only the creator becomes owner; subsequent visitors are members.
+    const existingOwner = await WorkspaceMember.findOne({ sessionId, role: 'owner', status: { $ne: 'removed' } });
+    const role = existingOwner ? 'member' : 'owner';
+
     await WorkspaceMember.findOneAndUpdate(
       { sessionId, userId },
       {
@@ -102,11 +110,20 @@ router.post('/:sessionId', async (req, res) => {
         email: email || '',
         fullName: fullName || null,
         avatarUrl: avatarUrl || null,
-        role: 'owner',
+        role,
         status: 'active',
       },
       { upsert: true }
     );
+
+    // Broadcast the new HTML to everyone else in the workspace room
+    emitWorkspaceUpdate(req.io, sessionId, {
+      htmlContent,
+      status: 'generated',
+      clientId,
+      prompt,
+      user: { id: userId, email, fullName, avatarUrl },
+    });
 
     res.status(201).json(session);
   } catch (err) {
@@ -119,21 +136,32 @@ router.post('/:sessionId', async (req, res) => {
 router.patch('/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { htmlContent, status } = req.body;
+    const { htmlContent, status, clientId, userId, email, fullName, avatarUrl } = req.body;
 
-    const update = {};
+    const update = { updatedAt: new Date() };
     if (htmlContent) update.htmlContent = htmlContent;
     if (status) update.status = status;
 
     const session = await GeneratedSession.findOneAndUpdate(
       { sessionId },
-      update,
+      { $set: update },
       { new: true }
     );
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
+
+    // Broadcast edit-time save to other collaborators
+    if (htmlContent) {
+      emitWorkspaceUpdate(req.io, sessionId, {
+        htmlContent,
+        status: status || 'edited',
+        clientId,
+        user: { id: userId, email, fullName, avatarUrl },
+      });
+    }
+
     res.json(session);
   } catch (err) {
     console.error('Update session error:', err);
