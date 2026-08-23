@@ -91,6 +91,15 @@
   }
 }
 
+/* Hide scrollbars globally — keeps scroll functionality, removes visual clutter */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @layer utilities {
   /* Added shader-style animated gradient orbs */
   .shader-orb {
@@ -380,8 +389,7 @@
   }
 
   @keyframes voice-wave-horizontal {
-    0%,
-    100% {
+    0%, 100% {
       height: 12px;
       opacity: 0.3;
     }
