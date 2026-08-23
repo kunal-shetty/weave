@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -43,25 +43,40 @@ async function progressiveReveal(
   onChunk(fullHtml);
 }
 
-export function PanelAgent({
-  sessionId,
-  initialPrompt,
-  initialFiles,
-  onPreviewReady,
-  onProgressiveHtml,
-  skipInitialGeneration = false,
-}: {
+export interface PanelAgentHandle {
+  appendRemoteMessage: (msg: { role: 'user' | 'agent'; content: string; type?: ChatMessage['type']; fromUser?: string }) => void;
+}
+
+export const PanelAgent = forwardRef<PanelAgentHandle, {
   sessionId: string;
   initialPrompt: string;
   initialFiles?: FileData[];
+  initialSavedHtml?: string | null;
   onPreviewReady: (html: string) => void;
   onProgressiveHtml?: (html: string) => void;
-  skipInitialGeneration?: boolean;
-}) {
+  broadcastChat?: (msg: { role: 'user' | 'agent'; content: string; type?: ChatMessage['type']; user?: { id: string; email: string; fullName?: string | null; avatarUrl?: string | null } }) => void;
+  remoteGenerating?: boolean;
+  remoteGeneratingUser?: { fullName?: string | null; email: string } | null;
+  currentUser?: { id: string; email: string; fullName?: string | null; avatarUrl?: string | null } | null;
+}>(function PanelAgent({
+  sessionId,
+  initialPrompt,
+  initialFiles,
+  initialSavedHtml,
+  onPreviewReady,
+  onProgressiveHtml,
+  broadcastChat,
+  remoteGenerating,
+  remoteGeneratingUser,
+  currentUser,
+}, ref) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialTriggeredRef = useRef(false);
+  const broadcastChatRef = useRef(broadcastChat);
+  broadcastChatRef.current = broadcastChat;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,7 +87,25 @@ export function PanelAgent({
       ...prev,
       { id: `msg-${Date.now()}-${Math.random()}`, role, content, timestamp: new Date(), type },
     ]);
+    // Mirror to other workspace collaborators
+    broadcastChatRef.current?.({ role, content, type, user: currentUser ?? undefined });
   }, []);
+
+  // Public API for the parent to push a remote-originated message into the local list
+  const appendRemoteMessage = useCallback((msg: { role: 'user' | 'agent'; content: string; type?: ChatMessage['type']; fromUser?: string }) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `remote-${Date.now()}-${Math.random()}`,
+        role: msg.role,
+        content: msg.fromUser && msg.role === 'user' ? `${msg.content}\n\n— ${msg.fromUser}` : msg.content,
+        timestamp: new Date(),
+        type: msg.type ?? 'status',
+      },
+    ]);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ appendRemoteMessage }), [appendRemoteMessage]);
 
   const analyzeOutput = useCallback((html: string) => {
     const lines = html.split('\n').filter((l) => l.trim());
@@ -186,11 +219,16 @@ export function PanelAgent({
 
   useEffect(() => {
     if (!initialPrompt) return;
+    if (initialTriggeredRef.current) return;
+    initialTriggeredRef.current = true;
 
     setMessages([{ id: 'user-1', role: 'user', content: initialPrompt, timestamp: new Date() }]);
 
-    if (skipInitialGeneration) {
+    // If the parent already loaded saved HTML, surface it without regenerating
+    if (initialSavedHtml && initialSavedHtml.trim()) {
       addMessage('agent', 'Loaded existing section from database. Preview is ready.', 'status');
+      onPreviewReady(initialSavedHtml);
+      if (onProgressiveHtml) onProgressiveHtml(initialSavedHtml);
       return;
     }
 
@@ -199,19 +237,21 @@ export function PanelAgent({
       .map((f) => f.base64!);
 
     generate(initialPrompt, images, false);
-  }, [initialPrompt, initialFiles, generate, skipInitialGeneration]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialPrompt, initialFiles, initialSavedHtml, generate, addMessage, onPreviewReady, onProgressiveHtml]);
 
   const sendMessage = async () => {
     if (!input.trim() || isStreaming) return;
 
+    const userMsg = input.trim();
     setMessages((prev) => [
       ...prev,
-      { id: `user-${Date.now()}`, role: 'user', content: input.trim(), timestamp: new Date() },
+      { id: `user-${Date.now()}`, role: 'user', content: userMsg, timestamp: new Date() },
     ]);
-    const msg = input.trim();
+    // Mirror the user prompt to other collaborators
+    broadcastChatRef.current?.({ role: 'user', content: userMsg, type: undefined, user: currentUser ?? undefined });
     setInput('');
 
-    await generate(msg, [], true);
+    await generate(userMsg, [], true);
   };
 
   return (
@@ -225,7 +265,7 @@ export function PanelAgent({
               msg.role === 'user'
                 ? 'bg-secondary/70 text-foreground border border-border/40'
                 : msg.type === 'error'
-                ? 'bg-red-500/[0.08] text-red-300/90 border border-red-500/[0.15]'
+                ? 'bg-red-500/8 text-red-300/90 border border-red-500/15'
                 : msg.type === 'status'
                 ? 'bg-secondary/20 text-muted-foreground border border-border/20'
                 : 'bg-secondary/30 text-foreground/70 border border-border/20'
@@ -238,7 +278,7 @@ export function PanelAgent({
                   </span>
                 </div>
               )}
-              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+              <div className="whitespace-pre-wrap wrap-break-word">{msg.content}</div>
               {msg.role === 'user' && (
                 <div className="mt-1 text-[9px] text-muted-foreground/50 text-right font-mono">
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -269,7 +309,7 @@ export function PanelAgent({
       {/* Input */}
       <div className="p-2.5 border-t border-border/30">
         <div className="relative group/input">
-          <div className="absolute -inset-px rounded-xl pointer-events-none transition-opacity duration-300 opacity-0 bg-gradient-to-br from-primary/20 via-transparent to-primary/10 blur-sm group-focus-within/input:opacity-100" />
+          <div className="absolute -inset-px rounded-xl pointer-events-none transition-opacity duration-300 opacity-0 bg-linear-to-br from-primary/20 via-transparent to-primary/10 blur-sm group-focus-within/input:opacity-100" />
           <div className="relative flex items-center gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50 input-3d">
             <button className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer">
               <Paperclip className="w-3.5 h-3.5" />
@@ -282,7 +322,7 @@ export function PanelAgent({
             <Button size="icon" onClick={sendMessage} disabled={!input.trim() || isStreaming}
               className={cn('h-8 w-8 rounded-lg btn-3d btn-glow transition-all duration-300',
                 input.trim() && !isStreaming
-                  ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border border-primary shadow-[0_0_24px_-4px_rgba(255,255,255,0.15)]'
+                  ? 'bg-linear-to-br from-primary to-primary/80 text-primary-foreground border border-primary shadow-[0_0_24px_-4px_rgba(255,255,255,0.15)]'
                   : 'bg-secondary/50 text-muted-foreground border border-border/50 hover:bg-secondary')}>
               {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             </Button>
@@ -291,7 +331,7 @@ export function PanelAgent({
       </div>
     </div>
   );
-}
+});
 
 function buildFallbackHtml(prompt: string): string {
   return `<div style="font-family:system-ui;padding:2rem;max-width:1200px;margin:0 auto;color:white;background:#0a0a0a">
