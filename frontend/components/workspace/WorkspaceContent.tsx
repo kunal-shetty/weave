@@ -5,11 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { PanelMembers } from './PanelMembers';
 import { PanelAgent, PanelAgentHandle } from './PanelAgent';
 import { PanelPreview } from './PanelPreview';
+import { ReviewQueue } from './ReviewQueue';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
 import {
   ArrowLeft, PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen, Sparkles, CircleDot,
-  ExternalLink, Pencil,
+  ExternalLink, Pencil, ClipboardCheck, Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,8 @@ export function WorkspaceContent() {
   // True once the initial DB/sessionStorage check has resolved — gates the PanelAgent mount
   const [initialLoadResolved, setInitialLoadResolved] = useState(false);
 
-  const [activeSide, setActiveSide] = useState<'preview' | 'members'>('preview');
+  const [activeSide, setActiveSide] = useState<'preview' | 'members' | 'reviews'>('preview');
+  const [leftTab, setLeftTab] = useState<'members' | 'reviews'>('members');
   const [leftWidth, setLeftWidth] = useState(280);
   const [chatWidth, setChatWidth] = useState(340);
   const [now, setNow] = useState('');
@@ -262,7 +264,7 @@ export function WorkspaceContent() {
     window.addEventListener('mouseup', onUp);
   };
 
-  const leftOpen = activeSide === 'members';
+  const leftOpen = activeSide === 'members' || activeSide === 'reviews';
   const rightOpen = activeSide === 'preview';
   const displayHtml = previewHtml || progressiveHtml;
 
@@ -321,9 +323,21 @@ export function WorkspaceContent() {
           <div className="h-4 w-px bg-border/50" />
           <button onClick={toggleLeft}
             className={cn('p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer active:scale-90', leftOpen && 'bg-secondary/40 text-foreground/70')}
-            aria-label="Toggle members panel">
+            aria-label="Toggle left panel">
             {leftOpen ? <PanelLeftClose className="w-3.5 h-3.5" /> : <PanelLeftOpen className="w-3.5 h-3.5" />}
           </button>
+          {leftOpen && (
+            <div className="flex items-center p-0.5 rounded-lg bg-secondary/30 border border-border/20">
+              <button onClick={() => setLeftTab('members')}
+                className={cn('flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-all cursor-pointer', leftTab === 'members' ? 'bg-secondary/60 text-foreground' : 'text-muted-foreground hover:text-foreground/60')}>
+                <Users className="w-3 h-3" /> Team
+              </button>
+              <button onClick={() => setLeftTab('reviews')}
+                className={cn('flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-all cursor-pointer', leftTab === 'reviews' ? 'bg-secondary/60 text-foreground' : 'text-muted-foreground hover:text-foreground/60')}>
+                <ClipboardCheck className="w-3 h-3" /> Reviews
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2 min-w-0">
             <div className="relative w-5 h-5 rounded-md bg-gradient-to-br from-primary/15 to-primary/5 border border-border/30 grid place-items-center shrink-0">
               <Sparkles className="w-2.5 h-2.5 text-foreground" />
@@ -368,14 +382,18 @@ export function WorkspaceContent() {
       {/* Layout: Members(optional) | Chat | Preview (dominant) */}
       <div className="relative z-10 flex-1 flex overflow-hidden">
 
-        {/* Left: Members / Tasks / Profile (optional) */}
+        {/* Left: Members / Reviews panel (optional) */}
         <div className={cn(
           'relative shrink-0 overflow-hidden border-r border-border/30 transition-all duration-500 ease-out',
           leftOpen ? 'opacity-100' : 'w-0 opacity-0 border-r-0'
         )}
           style={{ width: leftOpen ? leftWidth : 0 }}>
           <div className="h-full transition-transform duration-500" style={{ transform: leftOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
-            <PanelMembers sessionId={sessionId} />
+            {leftTab === 'members' ? (
+              <PanelMembers sessionId={sessionId} />
+            ) : (
+              <ReviewQueue sessionId={sessionId} />
+            )}
           </div>
           {leftOpen && <ResizeHandle onMouseDown={startResizeLeft} side="right" />}
         </div>
