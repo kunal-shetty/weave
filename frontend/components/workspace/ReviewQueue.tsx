@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getClientSocket } from '@/hooks/useSocket';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -91,7 +92,22 @@ export function ReviewQueue({ sessionId }: ReviewQueueProps) {
     }
   }, [sessionId, filterType, filterStatus]);
 
+  // Refetch on filter change
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Subscribe to socket for live review queue updates
+  const fetchRef = useRef(fetchItems);
+  fetchRef.current = fetchItems;
+  useEffect(() => {
+    const socket = getClientSocket();
+    const onMemberChange = (payload: { action?: string; sessionId?: string }) => {
+      if (payload.sessionId === sessionId && (payload.action === 'review_created' || payload.action === 'review_updated')) {
+        fetchRef.current();
+      }
+    };
+    socket.on('workspace:member_change', onMemberChange);
+    return () => { socket.off('workspace:member_change', onMemberChange); };
+  }, [sessionId]);
 
   const updateItem = async (reviewId: string, body: Record<string, unknown>) => {
     setActionLoading(reviewId);
