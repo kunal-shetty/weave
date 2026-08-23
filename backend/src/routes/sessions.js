@@ -4,7 +4,7 @@ import WorkspaceMember from '../models/WorkspaceMember.js';
 
 const router = Router();
 
-// GET /api/sessions/:sessionId — fetch a session's generated HTML
+// GET /api/sessions/:sessionId — fetch a session
 router.get('/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -19,38 +19,89 @@ router.get('/:sessionId', async (req, res) => {
   }
 });
 
-// POST /api/sessions/:sessionId — save/update generated HTML
-router.post('/:sessionId', async (req, res) => {
+// POST /api/sessions — create a new session (called by ChatArea before navigation)
+router.post('/', async (req, res) => {
   try {
-    const { sessionId } = req.params;
-    const { userId, prompt, htmlContent, fileCount = 0 } = req.body;
+    const { sessionId, userId, email, fullName, avatarUrl, prompt, files = [], fileCount = 0 } = req.body;
 
-    if (!userId || !htmlContent) {
-      return res.status(400).json({ error: 'userId and htmlContent are required' });
+    if (!sessionId || !userId || !prompt) {
+      return res.status(400).json({ error: 'sessionId, userId, and prompt are required' });
     }
 
+    // Upsert — create if new, update files/prompt if exists
     const session = await GeneratedSession.findOneAndUpdate(
       { sessionId },
       {
-        sessionId,
-        userId,
-        prompt,
-        htmlContent,
-        fileCount,
-        status: 'generated',
+        $set: {
+          userId,
+          prompt,
+          files,
+          fileCount: fileCount || files.length,
+        },
+        $setOnInsert: {
+          sessionId,
+          status: 'created',
+        },
       },
       { upsert: true, new: true, runValidators: true }
     );
 
-    // Auto-add the creator as owner if not already a member
+    // Auto-add the creator as owner
     await WorkspaceMember.findOneAndUpdate(
       { sessionId, userId },
       {
         sessionId,
         userId,
-        email: req.body.email || '',
-        fullName: req.body.fullName || null,
-        avatarUrl: req.body.avatarUrl || null,
+        email: email || '',
+        fullName: fullName || null,
+        avatarUrl: avatarUrl || null,
+        role: 'owner',
+        status: 'active',
+      },
+      { upsert: true }
+    );
+
+    res.status(201).json(session);
+  } catch (err) {
+    console.error('Create session error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/sessions/:sessionId — save/update generated HTML (called after generation)
+router.post('/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { userId, email, fullName, avatarUrl, prompt, htmlContent, files, fileCount = 0 } = req.body;
+
+    if (!userId || !htmlContent) {
+      return res.status(400).json({ error: 'userId and htmlContent are required' });
+    }
+
+    const update = {
+      userId,
+      prompt,
+      htmlContent,
+      fileCount,
+      status: 'generated',
+    };
+    if (files) update.files = files;
+
+    const session = await GeneratedSession.findOneAndUpdate(
+      { sessionId },
+      { $set: update },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    // Auto-add the creator as owner
+    await WorkspaceMember.findOneAndUpdate(
+      { sessionId, userId },
+      {
+        sessionId,
+        userId,
+        email: email || '',
+        fullName: fullName || null,
+        avatarUrl: avatarUrl || null,
         role: 'owner',
         status: 'active',
       },
@@ -60,17 +111,6 @@ router.post('/:sessionId', async (req, res) => {
     res.status(201).json(session);
   } catch (err) {
     console.error('Save session error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /api/sessions/:sessionId/status — check if session exists (no body)
-router.get('/:sessionId/status', async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const exists = await GeneratedSession.exists({ sessionId });
-    res.json({ exists: !!exists });
-  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
