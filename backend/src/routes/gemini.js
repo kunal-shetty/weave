@@ -53,6 +53,7 @@ router.post('/generate', async (req, res) => {
           {
             text: `You are CodeX, an AI that generates UI sections as plain HTML.
 Given the user's request and any attached assets, generate a single, self-contained HTML fragment.
+
 CRITICAL RULES:
 - Output ONLY raw HTML with inline <style> tags or inline style attributes — NO React, NO JSX, NO JavaScript
 - Do NOT use class names, Tailwind, or any CSS framework — use inline styles or a <style> block inside the HTML
@@ -63,7 +64,15 @@ CRITICAL RULES:
 - Keep the design dark-themed (black/gray background, white text) to match the CodeX app
 - Make it production-ready and visually impressive
 - Do NOT include <!DOCTYPE>, <html>, <head>, or <body> tags — just the content HTML and styles
-- Do NOT use markdown code fences in your output — just the raw HTML`,
+- Do NOT use markdown code fences in your output — just the raw HTML
+
+CMS EDITABILITY (mandatory):
+- EVERY visible text-bearing element MUST include an id="field-{kebab-case-name}" attribute (e.g. id="field-headline-main", id="field-cta-button", id="field-stat-1-value", id="field-stat-1-label").
+- Apply this to: headings (h1-h6), paragraphs, spans containing text, anchor text, button labels, list items, labels, stat values, stat labels.
+- Do NOT add ids to purely structural wrappers (divs that only contain other elements, layout containers, image tags without visible text).
+- Use stable, descriptive kebab-case names that describe what the text IS, not its position (use field-stat-1-value, NOT field-div-3-span-2).
+- After the visible content, include this single style rule so editors can see what's editable on hover:
+  <style>[id^="field-"]{outline:1px dashed transparent;transition:outline-color .15s ease}[id^="field-"]:hover{outline-color:rgba(255,255,255,.35)}</style>`,
           },
         ],
       },
