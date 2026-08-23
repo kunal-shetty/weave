@@ -97,16 +97,19 @@ export default function EditPage() {
   }, [html]);
 
   const extractEditableFields = (htmlContent: string) => {
-    const fieldRegex = /id="(field-[^"]+)"[^>]*>([^<]*)</g;
+    // Match id="field-..." or id='field-...' (either quote style)
+    const fieldRegex = /id=["'](field-[^"']+)["'][^>]*>([^<]*)/g;
     const extracted: EditableField[] = [];
+    const seen = new Set<string>();
     let match;
 
     while ((match = fieldRegex.exec(htmlContent)) !== null) {
       const [, id, value] = match;
+      if (seen.has(id)) continue;
+      seen.add(id);
       if (value.trim()) {
         const label = id.replace('field-', '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-        const type = value.match(/^\d+[+]?$/) ? 'text' : 'text';
-        extracted.push({ id, label, type, value: value.trim(), originalValue: value.trim() });
+        extracted.push({ id, label, type: 'text', value: value.trim(), originalValue: value.trim() });
       }
     }
 
@@ -115,9 +118,9 @@ export default function EditPage() {
 
   const updateField = (fieldId: string, newValue: string) => {
     setFields((prev) => prev.map((f) => f.id === fieldId ? { ...f, value: newValue } : f));
-    // Update the HTML
     if (html) {
-      const regex = new RegExp(`(id="${fieldId}"[^>]*>)([^<]*)`, 'g');
+      // Match either quote style
+      const regex = new RegExp(`(id=["']${fieldId}["'][^>]*>)([^<]*)`, 'g');
       const updatedHtml = html.replace(regex, `$1${newValue}`);
       setHtml(updatedHtml);
       setCodeValue(updatedHtml);
@@ -152,14 +155,14 @@ export default function EditPage() {
 
   if (!html) {
     return (
-      <div className="relative min-h-screen overflow-hidden flex items-center justify-center bg-black">
-        <div className="text-white/30 text-sm animate-pulse">Loading editor...</div>
+      <div className="relative min-h-screen overflow-hidden flex items-center justify-center bg-background">
+        <div className="text-muted-foreground text-sm animate-pulse">Loading editor...</div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col bg-black">
+    <div className="relative h-screen overflow-hidden flex flex-col bg-background">
       <ShaderBackground />
 
       {/* Header */}
@@ -230,7 +233,7 @@ export default function EditPage() {
         {/* Right: Preview */}
         <div className="flex-1 overflow-hidden p-4">
           {editMode === 'visual' ? (
-            <div className="h-full rounded-2xl overflow-hidden border border-border/50 bg-black">
+            <div className="h-full rounded-2xl overflow-hidden border border-border/50 bg-background/60">
               <iframe ref={iframeRef} className="w-full h-full" style={{ border: 'none' }} title="Preview" />
             </div>
           ) : (
