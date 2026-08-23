@@ -9,8 +9,8 @@ const workspaceMemberSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: null },
     role: {
       type: String,
-      enum: ['owner', 'editor', 'viewer'],
-      default: 'viewer',
+      enum: ['owner', 'member'],
+      default: 'member',
     },
     status: {
       type: String,
