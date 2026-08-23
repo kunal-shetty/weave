@@ -9,7 +9,10 @@ import generateRoutes from './routes/generate.js';
 import sectionsRoutes from './routes/sections.js';
 import elementsRoutes from './routes/elements.js';
 import healthRoutes from './routes/health.js';
-import clerkWebhookRoutes from './routes/webhooks/clerk.js';
+import geminiRoutes from './routes/gemini.js';
+import geminiTestRoutes from './routes/gemini-test.js';
+import sessionsRoutes from './routes/sessions.js';
+import workspaceMembersRoutes from './routes/workspace-members.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupSocketIO } from './config/socket.js';
 
@@ -29,10 +32,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Raw body for Clerk webhook — MUST come before express.json()
-// Keeps req.body as a Buffer so svix can verify the original bytes.
-app.use('/api/webhooks', express.raw({ type: 'application/json', limit: '1mb' }));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -47,7 +46,10 @@ app.use('/api/generate', generateRoutes);
 app.use('/api/sections', sectionsRoutes);
 app.use('/api/elements', elementsRoutes);
 app.use('/api/health', healthRoutes);
-app.use('/api/webhooks', clerkWebhookRoutes);
+app.use('/api/gemini', geminiRoutes);
+app.use('/api/gemini', geminiTestRoutes);
+app.use('/api/sessions', sessionsRoutes);
+app.use('/api/workspace-members', workspaceMembersRoutes);
 
 // Error handler
 app.use(errorHandler);
