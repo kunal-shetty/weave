@@ -31,15 +31,14 @@ export function PanelPreview({ previewHtml, sessionId }: { previewHtml: string |
     if (!doc) return;
 
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a0a;color:white;font-family:system-ui,-apple-system,sans-serif;padding:0;overflow:hidden}::-webkit-scrollbar{display:none}body{-ms-overflow-style:none;scrollbar-width:none}</style></head><body>${previewHtml}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#0a0a0a;color:white;font-family:system-ui,-apple-system,sans-serif;padding:0;overflow-y:auto;overflow-x:hidden}::-webkit-scrollbar{display:none}body{-ms-overflow-style:none;scrollbar-width:none}</style></head><body>${previewHtml}</body></html>`);
     doc.close();
   }, [previewHtml, iframeKey]);
 
   const openInNewTab = () => {
     if (!previewHtml) return;
-    const full = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>CodeX Preview</title><script src="https://cdn.tailwindcss.com"><\/script></head><body class="bg-gray-950" style="padding:2rem">${previewHtml}</body></html>`;
-    const blob = new Blob([full], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CodeX Preview</title><style>html,body{margin:0;padding:0;min-height:100%;background:#0a0a0a;color:#fff;font-family:system-ui,-apple-system,sans-serif}</style></head><body style="padding:2rem">${previewHtml}</body></html>`;
+    const url = `data:text/html;charset=utf-8,${encodeURIComponent(full)}`;
     window.open(url, '_blank');
   };
 
@@ -108,14 +107,14 @@ export function PanelPreview({ previewHtml, sessionId }: { previewHtml: string |
       {/* Preview — full remaining height, no padding, no scrollbar */}
       <div className="flex-1 overflow-hidden relative">
         {previewHtml ? (
-          <div className="h-full flex justify-center bg-black/50">
+          <div className="h-full flex justify-center bg-background/60">
             <div className={cn(
               'relative h-full overflow-hidden transition-all duration-500 ease-out',
               device === 'desktop' && 'w-full',
               device === 'tablet' && 'w-[768px] max-w-full border-x border-border/30',
               device === 'mobile' && 'w-[375px] border-x border-border/30'
             )}>
-              <iframe ref={iframeRef} key={iframeKey} className="w-full h-full bg-black scrollbar-none" style={{ border: 'none' }} title="Preview" />
+              <iframe ref={iframeRef} key={iframeKey} className="w-full h-full bg-background scrollbar-none" style={{ border: 'none' }} title="Preview" />
             </div>
           </div>
         ) : (
