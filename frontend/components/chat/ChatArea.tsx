@@ -2,14 +2,15 @@
 
 import {
   ChevronDown, Settings, Upload, Lightbulb, FileText, ImageIcon,
-  ArrowUp, Paperclip, X, Check, Loader2,
+  ArrowUp, Paperclip, X, Check, Loader2, Sliders,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ParticleOrb } from '@/components/shared/particle-orb';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
 import { createClient } from '@/lib/supabase/client';
+import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -21,9 +22,33 @@ export function ChatArea() {
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [configDropdownOpen, setConfigDropdownOpen] = useState(false);
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Settings state
+  const [model, setModel] = useState<'codex-v1' | 'codex-beta'>('codex-v1');
+  const [creativity, setCreativity] = useState(70);
+  const [outputStyle, setOutputStyle] = useState<'html' | 'jsx'>('html');
+
+  // Options state
+  const [sectionType, setSectionType] = useState<'hero' | 'cards' | 'pricing' | 'testimonials' | 'footer'>('hero');
+  const [tone, setTone] = useState<'bold' | 'minimal' | 'playful'>('bold');
+  const [accent, setAccent] = useState<'red' | 'blue' | 'green' | 'purple'>('red');
+
+  // Close any open dropdown on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSettingsOpen(false);
+        setOptionsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const handleSubmit = async () => {
     if (!prompt.trim() && attachedFiles.length === 0) return;
@@ -48,10 +73,27 @@ export function ChatArea() {
         })
       );
 
+      // Fold settings + options into the prompt so Gemini respects them
+      const accentMap: Record<string, string> = {
+        red: '#ef4444',
+        blue: '#3b82f6',
+        green: '#10b981',
+        purple: '#a855f7',
+      };
+      const optionsDirective = [
+        `[Section type: ${sectionType}]`,
+        `[Tone: ${tone}]`,
+        `[Accent colour: ${accent} (${accentMap[accent]})]`,
+        `[Creativity: ${creativity}%]`,
+        `[Output: ${outputStyle}]`,
+      ].join(' ');
+      const finalPrompt = `${optionsDirective} ${prompt.trim()}`.trim();
+
       const sessionData = {
         sessionId,
-        prompt: prompt.trim(),
+        prompt: finalPrompt,
         files: fileData,
+        options: { sectionType, tone, accent, creativity, model, outputStyle },
         createdAt: new Date().toISOString(),
       };
 
@@ -71,7 +113,7 @@ export function ChatArea() {
               email: user.email,
               fullName: user.user_metadata?.full_name || user.user_metadata?.name,
               avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-              prompt: prompt.trim(),
+              prompt: finalPrompt,
               files: fileData,
               fileCount: fileData.length,
             }),
@@ -225,10 +267,10 @@ export function ChatArea() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="ghost" size="icon" className="btn-3d h-8 w-8 rounded-full bg-secondary/30 hover:bg-destructive/20 text-white hover:text-destructive" onClick={() => setIsRecording(false)}>
+                  <Button variant="ghost" size="icon" className="btn-3d h-8 w-8 rounded-full bg-secondary/40 hover:bg-destructive/20 text-foreground hover:text-destructive" onClick={() => setIsRecording(false)}>
                     <X className="w-4 h-4" />
                   </Button>
-                  <Button size="icon" className="btn-3d btn-glow h-8 w-8 rounded-full bg-gradient-to-br from-primary via-gray-900 to-black hover:from-gray-900 hover:to-black text-white shadow-xl" onClick={() => setIsRecording(false)}>
+                  <Button size="icon" className="btn-3d btn-glow h-8 w-8 rounded-full bg-gradient-to-br from-white via-neutral-200 to-neutral-400 hover:from-neutral-100 hover:to-neutral-300 text-black shadow-xl" onClick={() => setIsRecording(false)}>
                     <Check className="w-4 h-4" />
                   </Button>
                 </div>
@@ -269,19 +311,132 @@ export function ChatArea() {
                     <Paperclip className="w-4 h-4" />
                     Attach
                   </Button>
-                  <Button variant="ghost" size="sm" className="btn-3d gap-2 text-muted-foreground hover:text-foreground">
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Button>
-                  <Button variant="ghost" size="sm" className="btn-3d gap-2 text-muted-foreground hover:text-foreground">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 3H7V7H3V3Z" fill="currentColor" opacity="0.6" />
-                      <path d="M9 3H13V7H9V3Z" fill="currentColor" opacity="0.6" />
-                      <path d="M3 9H7V13H3V9Z" fill="currentColor" opacity="0.6" />
-                      <path d="M9 9H13V13H9V9Z" fill="currentColor" opacity="0.6" />
-                    </svg>
-                    Options
-                  </Button>
+                  {/* Settings dropdown */}
+                  <div className="relative">
+                    <Button variant="ghost" size="sm"
+                      className="btn-3d gap-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => { setSettingsOpen((v) => !v); setOptionsOpen(false); }}>
+                      <Settings className="w-4 h-4" />
+                      Settings
+                      <ChevronDown className={cn('w-3 h-3 transition-transform', settingsOpen && 'rotate-180')} />
+                    </Button>
+                    {settingsOpen && (
+                      <div className="absolute bottom-full mb-2 left-0 w-72 rounded-xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl p-3 z-50">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Model</p>
+                        <div className="grid grid-cols-2 gap-1.5 mb-3">
+                          {[
+                            { id: 'codex-v1', label: 'CodeX v1.0', sub: 'UI Generator' },
+                            { id: 'codex-beta', label: 'CodeX v0.5', sub: 'Beta' },
+                          ].map((m) => (
+                            <button key={m.id} onClick={() => setModel(m.id as 'codex-v1' | 'codex-beta')}
+                              className={cn('text-left px-2.5 py-2 rounded-lg border text-xs transition-all',
+                                model === m.id
+                                  ? 'bg-secondary/60 border-border text-foreground'
+                                  : 'border-transparent hover:bg-secondary/40 text-muted-foreground hover:text-foreground')}>
+                              <div className="font-medium">{m.label}</div>
+                              <div className="text-[10px] text-muted-foreground/70">{m.sub}</div>
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Creativity</p>
+                        <div className="px-1 mb-3">
+                          <input type="range" min={0} max={100} value={creativity}
+                            onChange={(e) => setCreativity(Number(e.target.value))}
+                            className="w-full accent-white" />
+                          <div className="flex justify-between text-[9px] text-muted-foreground font-mono mt-1">
+                            <span>Precise</span><span>{creativity}%</span><span>Wild</span>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Output style</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { id: 'html', label: 'HTML fragment' },
+                            { id: 'jsx', label: 'JSX / React' },
+                          ].map((s) => (
+                            <button key={s.id} onClick={() => setOutputStyle(s.id as 'html' | 'jsx')}
+                              className={cn('px-2.5 py-1.5 rounded-lg border text-xs transition-all',
+                                outputStyle === s.id
+                                  ? 'bg-secondary/60 border-border text-foreground'
+                                  : 'border-transparent hover:bg-secondary/40 text-muted-foreground hover:text-foreground')}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Options dropdown */}
+                  <div className="relative">
+                    <Button variant="ghost" size="sm"
+                      className="btn-3d gap-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => { setOptionsOpen((v) => !v); setSettingsOpen(false); }}>
+                      <Sliders className="w-4 h-4" />
+                      Options
+                      <ChevronDown className={cn('w-3 h-3 transition-transform', optionsOpen && 'rotate-180')} />
+                    </Button>
+                    {optionsOpen && (
+                      <div className="absolute bottom-full mb-2 left-0 w-80 rounded-xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl p-3 z-50">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Section type</p>
+                        <div className="grid grid-cols-3 gap-1.5 mb-3">
+                          {[
+                            { id: 'hero', label: 'Hero' },
+                            { id: 'cards', label: 'Cards' },
+                            { id: 'pricing', label: 'Pricing' },
+                            { id: 'testimonials', label: 'Reviews' },
+                            { id: 'features', label: 'Features' },
+                            { id: 'footer', label: 'Footer' },
+                          ].map((s) => (
+                            <button key={s.id} onClick={() => setSectionType(s.id as typeof sectionType)}
+                              className={cn('px-2 py-1.5 rounded-lg border text-[11px] transition-all',
+                                sectionType === s.id
+                                  ? 'bg-secondary/60 border-border text-foreground'
+                                  : 'border-transparent hover:bg-secondary/40 text-muted-foreground hover:text-foreground')}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Tone</p>
+                        <div className="grid grid-cols-3 gap-1.5 mb-3">
+                          {[
+                            { id: 'bold', label: 'Bold' },
+                            { id: 'minimal', label: 'Minimal' },
+                            { id: 'playful', label: 'Playful' },
+                          ].map((t) => (
+                            <button key={t.id} onClick={() => setTone(t.id as typeof tone)}
+                              className={cn('px-2 py-1.5 rounded-lg border text-[11px] transition-all',
+                                tone === t.id
+                                  ? 'bg-secondary/60 border-border text-foreground'
+                                  : 'border-transparent hover:bg-secondary/40 text-muted-foreground hover:text-foreground')}>
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Accent colour</p>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { id: 'red', label: 'Red', dot: 'bg-red-500' },
+                            { id: 'blue', label: 'Blue', dot: 'bg-blue-500' },
+                            { id: 'green', label: 'Green', dot: 'bg-emerald-500' },
+                            { id: 'purple', label: 'Purple', dot: 'bg-purple-500' },
+                          ].map((c) => (
+                            <button key={c.id} onClick={() => setAccent(c.id as typeof accent)}
+                              className={cn('flex items-center gap-2 px-2 py-1.5 rounded-lg border text-[11px] transition-all',
+                                accent === c.id
+                                  ? 'bg-secondary/60 border-border text-foreground'
+                                  : 'border-transparent hover:bg-secondary/40 text-muted-foreground hover:text-foreground')}>
+                              <span className={cn('w-2.5 h-2.5 rounded-full', c.dot)} />
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="icon" className="btn-3d h-9 w-9 text-white hover:text-foreground" onClick={() => setIsRecording(true)}>
@@ -290,7 +445,7 @@ export function ChatArea() {
                   <Button
                     size="icon"
                     disabled={isSubmitting || (!prompt.trim() && attachedFiles.length === 0)}
-                    className="btn-3d btn-glow h-9 w-9 rounded-full bg-gradient-to-br from-primary via-gray-900 to-black hover:from-gray-900 hover:to-black text-white shadow-xl disabled:opacity-40"
+                    className="btn-3d btn-glow h-9 w-9 rounded-full bg-gradient-to-br from-white via-neutral-200 to-neutral-400 hover:from-neutral-100 hover:to-neutral-300 text-black shadow-xl disabled:opacity-40"
                     onClick={handleSubmit}
                   >
                     {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
