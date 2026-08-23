@@ -2,29 +2,32 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Zap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Suspense } from 'react';
 
-export default function AuthPage() {
+function AuthPageInner() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next') || '/';
   const supabase = createClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.replace('/');
+        router.replace(next);
       }
     });
-  }, [router, supabase]);
+  }, [router, supabase, next]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
     if (error) {
@@ -120,5 +123,17 @@ export default function AuthPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-black">
+        <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
+      </div>
+    }>
+      <AuthPageInner />
+    </Suspense>
   );
 }
