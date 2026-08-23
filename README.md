@@ -1,231 +1,183 @@
 # CodeX — AI-Assisted UI Generation Platform
+
 ### SIH 2026 · Problem Statement PS7 · Team CodeX
 
-Generate CMS-bound React sections from **wireframe images**, **existing code**, or a **natural language prompt** — or combine all three.
+> A CMS-bound UI generator that treats regeneration as a **merge, not a rewrite** — so live content edits never get wiped out when a design changes.
 
 ---
 
-## Architecture Overview
+## What CodeX Does
+
+Give it a **wireframe image**, **existing React code**, or a **natural-language prompt** — or combine all three — and CodeX generates a production-ready, CMS-bound React section with:
+
+- **Stable field IDs** — every editable text, image, and button has a unique `fieldId` that survives regeneration
+- **Redux data binding** — sections read content from the Redux store, not hard-coded strings
+- **Diff-aware regeneration** — when you regenerate, unchanged elements keep their IDs and live content. Only genuinely new/removed elements are flagged
+- **Live CMS editing** — change a headline in the editor panel, and the preview updates instantly without regenerating code
+- **Real-time collaboration** — multiple team members see the same workspace, chat, and preview updates live
+- **Confidence-scored review queue** — wireframe regions are analysed by AI and flagged with confidence scores for team review
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone and install
+git clone <repo-url> codex
+cd codex
+npm run install:all
+
+# 2. Set up environment
+cp backend/.env.example backend/.env    # Fill in API keys
+cp frontend/.env.example frontend/.env  # Fill in Supabase keys
+
+# 3. Start MongoDB (local or Atlas)
+
+# 4. Run
+npm run dev:backend    # Terminal 1 → http://localhost:4000
+npm run dev:frontend   # Terminal 2 → http://localhost:3000
+```
+
+**Detailed setup:** [docs/SETUP.md](docs/SETUP.md)
+
+---
+
+## Architecture
 
 ```
 User Input (Wireframe / Code / Prompt)
         │
         ▼
  ┌─────────────────┐
- │  Next.js Frontend│  Redux (CMS slice + Studio slice)
- │  Generator Studio│  Socket.IO client (live patches)
+ │  Next.js 15      │  React 19 + Redux Toolkit + Tailwind CSS 4
+ │  Generator Studio │  Socket.IO client (live collaboration)
  └────────┬────────┘
-          │ POST /api/generate (multipart)
+          │ REST / SSE
           ▼
- ┌─────────────────────────────────────────────────────┐
- │              Express + Socket.IO Backend             │
- │                                                     │
- │  1. Allocate fieldIds server-side (never via LLM)   │
- │  2. Upload wireframe → AWS S3                       │
- │  3. Call Anthropic Claude (vision + text)           │
- │  4. Diff-merge against existing elements            │
- │  5. Save Section + Elements → MongoDB               │
- │  6. Mirror metadata + KV pairs → Supabase           │
- │  7. Broadcast diff via Socket.IO                    │
- └─────────────────────────────────────────────────────┘
-          │
-    ┌─────┴──────────────────┐
-    │                        │
-    ▼                        ▼
- MongoDB                 Supabase
- (documents)          (KV pairs + meta)
-    │
-    ▼
- AWS S3
- (wireframe images)
+ ┌─────────────────────────────────────────────┐
+ │        Express + Socket.IO Backend           │
+ │                                              │
+ │  Claude (JSX generation)  Gemini (HTML +    │
+ │  + wireframe vision)       wireframe analysis)│
+ │                                              │
+ │  Diff-Merge Engine · Review Queue · Member   │
+ │  Management · Real-time Broadcasting         │
+ └──────┬──────────────┬──────────────┬────────┘
+        │              │              │
+   MongoDB         Supabase        AWS S3
+   (documents)    (KV + auth)   (wireframes)
 ```
 
-## Data Flow
-
-| Store | What lives there |
-|-------|-----------------|
-| **MongoDB** | Full Section + Element documents (generated JSX, loops, CSS) |
-| **Supabase** | `section_meta` (page-level lookup), `element_meta` (field-level lookup), `field_kv` (live content KV) |
-| **AWS S3** | Wireframe PNG/JPG uploads (key = `wireframes/{sectionId}.{ext}`) |
+**Full architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
-## Prerequisites
+## Two Generation Flows
 
-- Node.js ≥ 20
-- MongoDB (local or Atlas)
-- Supabase project
-- AWS account with an S3 bucket
-- Anthropic API key
+### Studio Flow (`/generate` → `/preview/:pageName`)
 
----
+The original architecture matching the problem statement. Generates **React JSX** with full Redux binding, CMS editor, and diff-merge engine.
 
-## Setup
+**Routes:** `/generate`, `/preview/:pageName`, `/sections`
 
-### 1. Clone & install
+### Workspace Flow (`/workspace/:sessionId`)
 
-```bash
-# Backend
-cd backend && npm install
+A real-time collaborative flow. Generates **HTML** with streaming, live preview, chat, member management, and review queue.
 
-# Frontend
-cd ../frontend && npm install
-```
+**Routes:** `/workspace/:sessionId`, `/edit/:sessionId`
 
-### 2. Environment variables
-
-**Backend** — copy `.env.example` to `.env` and fill in:
-
-```env
-PORT=4000
-MONGODB_URI=mongodb://localhost:27017/codex
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
-AWS_S3_BUCKET=codex-wireframes
-ANTHROPIC_API_KEY=sk-ant-...
-FRONTEND_URL=http://localhost:3000
-```
-
-**Frontend** — copy `.env.example` to `.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
-NEXT_PUBLIC_STORAGE_URL=https://codex-wireframes.s3.us-east-1.amazonaws.com
-```
-
-### 3. Supabase migration
-
-Run `supabase_migration.sql` in your Supabase SQL editor. This creates:
-- `section_meta` — page-level section metadata
-- `element_meta` — field-level element metadata  
-- `field_kv` — live content key-value pairs
-
-Optionally enable Realtime on `field_kv` for push-based CMS updates.
-
-### 4. AWS S3 bucket
-
-Create a bucket named `codex-wireframes` (or your chosen name). Configure CORS:
-
-```json
-[
-  {
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["GET", "PUT", "POST"],
-    "AllowedOrigins": ["http://localhost:3000"],
-    "ExposeHeaders": []
-  }
-]
-```
-
-### 5. Run
-
-```bash
-# Terminal 1 — Backend
-cd backend && npm run dev
-
-# Terminal 2 — Frontend
-cd frontend && npm run dev
-```
-
-Open **http://localhost:3000** → redirects to `/generate`.
-
-### 6. Seed demo data (optional)
-
-```bash
-cd backend && npm run seed
-```
+Both flows share: MongoDB persistence, Supabase metadata mirroring, Socket.IO real-time events, and the review queue.
 
 ---
 
-## API Reference
+## Features
 
-### POST `/api/generate`
-**Multipart form-data**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `wireframe` | File (PNG/JPG/WebP) | one of three |
-| `code` | text | one of three |
-| `prompt` | text | one of three |
-| `pageName` | text | no (default: Home) |
-| `sectionName` | text | no (default: HeroSection) |
-| `accentColor` | text | no (default: #ef4444) |
-| `cardCount` | number | no (default: 3) |
-
-**Response** `201`
-```json
-{
-  "sectionId": "7001234567",
-  "sectionName": "HeroSection",
-  "pageName": "Home",
-  "generatedJsx": "...",
-  "ids": { "heroImage": "...", "headlineMain": "...", ... },
-  "warnings": [],
-  "wireframeUrl": "https://...",
-  "elements": [...]
-}
-```
-
-### GET `/api/sections`
-Returns all sections sorted by `createdAt` desc.
-
-### POST `/api/sections/:sectionId/regenerate`
-Body: `{ prompt?, accentColor? }` — Triggers a new LLM generation, diffs against existing elements, broadcasts via Socket.IO.
-
-### PATCH `/api/sections/:sectionId/status`
-Body: `{ sectionStatus: "Approved" | "Rejected" | "Pending" }`
-
-### GET `/api/elements?sectionId=&pageName=`
-Returns filtered elements.
-
-### PATCH `/api/elements/:fieldId`
-Body: `{ content?, css?, loop? }` — Live-syncs to Supabase KV and broadcasts Socket.IO `element_patched`.
-
-### GET `/api/health`
-Returns service connection status (MongoDB, Supabase, S3, LLM).
+| Feature | Studio | Workspace |
+|---------|--------|-----------|
+| Prompt generation | ✅ Claude | ✅ Gemini |
+| Wireframe input | ✅ Claude Vision | ✅ Gemini Vision |
+| Code input | ✅ Claude | — |
+| Combined inputs | ✅ | — |
+| React JSX output | ✅ | — |
+| HTML output | — | ✅ |
+| CMS field editing | ✅ CMSEditor | ✅ field-* editor |
+| Diff-merge engine | ✅ | — |
+| Real-time collab | ✅ (socket) | ✅ (full) |
+| Chat | — | ✅ |
+| Review queue | ✅ (auto-created) | ✅ (live) |
+| Confidence scoring | ✅ | ✅ |
+| Wireframe overlay | ✅ | — |
+| Member management | — | ✅ |
+| Approve/reject | ✅ (section) | ✅ (per-element) |
 
 ---
 
-## Frontend Routes
+## Documentation
 
-| Route | Description |
-|-------|-------------|
-| `/generate` | Generator Studio (wireframe + code + prompt) |
-| `/preview/:pageName` | Live preview with CMS editor + status controls |
-| `/sections` | All sections grid with filter and status management |
-
----
-
-## Generated Section Contract
-
-Every section the LLM outputs must follow these rules (validated server-side):
-
-1. **`const ids = { ... }`** — references server-allocated fieldIds only
-2. **`dangerouslySetInnerHTML`** — every text node, with fallback
-3. **`fetchElementsByIds` dispatch** — on mount
-4. **`useSelector`** — reads from `state.cms.allSections[pageName]`
-5. **`applyCssOverrides(cssData)`** in `useEffect` on cssData change
-6. **`export default`** — named component
-
-See `sections/generated/HeroSection.tsx` for the reference implementation.
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture, technology choices, why each tool was chosen |
+| [docs/API.md](docs/API.md) | Complete API reference for all endpoints |
+| [docs/DATABASE.md](docs/DATABASE.md) | MongoDB models, Supabase tables, Redux store shape |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | Component architecture, state management, design system |
+| [docs/REALTIME.md](docs/REALTIME.md) | Socket.IO architecture, room management, event flow |
+| [docs/FEATURES.md](docs/FEATURES.md) | Feature matrix mapped to problem statement requirements |
+| [docs/SETUP.md](docs/SETUP.md) | Detailed setup guide with troubleshooting |
+| [docs/CHECKLIST.md](docs/CHECKLIST.md) | Acceptance checklist verification (Section 24) |
 
 ---
 
-## Socket.IO Events
+## Tech Stack
 
-| Event | Direction | Payload |
-|-------|-----------|---------|
-| `join_section` | Client → Server | `{ sectionId }` |
-| `leave_section` | Client → Server | `{ sectionId }` |
-| `element_patched` | Server → Client | `CMSElement` |
-| `diff_update` | Server → Client | `{ sectionId, diff }` |
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Frontend | Next.js 15, React 19, Redux Toolkit | File-based routing, concurrent rendering, CMS state management |
+| Styling | Tailwind CSS 4, shadcn/ui | Required by problem statement, accessible components |
+| Backend | Express, Socket.IO | Lightweight API + real-time events |
+| Database | MongoDB (Mongoose), Supabase | Document model for complex schemas, fast KV lookups |
+| Storage | AWS S3 | Wireframe image hosting |
+| AI | Claude (Anthropic), Gemini (Google) | Vision + code generation, fast HTML streaming |
+| Auth | Supabase Auth (OAuth) | Google/GitHub login |
+
+---
+
+## API Overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/generate` | Generate React section (wireframe + code + prompt) |
+| GET | `/api/sections` | List all sections |
+| POST | `/api/sections/:id/regenerate` | Regenerate with diff-merge |
+| PATCH | `/api/sections/:id/status` | Approve/reject section |
+| GET | `/api/elements` | List CMS elements |
+| PATCH | `/api/elements/:fieldId` | Edit element content |
+| POST | `/api/sessions` | Create workspace session |
+| POST | `/api/reviews/:sessionId` | Create review items |
+| PATCH | `/api/reviews/:sessionId/:reviewId` | Assign/approve/reject review |
+| POST | `/api/reviews/analyze-wireframe` | AI wireframe analysis |
+
+**Full API docs:** [docs/API.md](docs/API.md)
+
+---
+
+## Problem Statement Compliance
+
+CodeX addresses **PS7: AI-Assisted UI Generation from Wireframe, Code, and Prompt** with:
+
+- ✅ All 4 primary objectives (Section 4.1)
+- ✅ All 3 secondary objectives (Section 4.2)
+- ✅ 6 of 8 stretch objectives (Section 4.3)
+- ✅ All 14 mandatory component rules (Section 12.1)
+- ✅ All 6 Generator Studio requirements (FR-G)
+- ✅ All 8 Generation Engine requirements (FR-E)
+- ✅ All 7 Preview/CMS requirements (FR-P)
+- ✅ All 6 Persistence API requirements (FR-A)
+- ✅ All 10 Non-Functional requirements (NFR)
+
+**Full feature matrix:** [docs/FEATURES.md](docs/FEATURES.md)
 
 ---
 
 ## Team
 
-**CodeX** — SIH 2026, Problem Statement PS7: AI-Assisted UI Generation from Design Inputs
+**CodeX** — Smart India Hackathon 2026, Problem Statement PS7
