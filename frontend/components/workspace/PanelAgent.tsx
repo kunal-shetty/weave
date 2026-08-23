@@ -29,9 +29,6 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/**
- * Progressively reveal HTML to the preview panel in chunks.
- */
 async function progressiveReveal(
   fullHtml: string,
   onChunk: (partialHtml: string) => void,
@@ -39,12 +36,10 @@ async function progressiveReveal(
   const lines = fullHtml.split('\n');
   const total = lines.length;
   const chunkSize = 4;
-
   for (let i = 0; i < total; i += chunkSize) {
     onChunk(lines.slice(0, Math.min(i + chunkSize, total)).join('\n'));
     await sleep(60 + Math.random() * 40);
   }
-
   onChunk(fullHtml);
 }
 
@@ -91,7 +86,6 @@ export function PanelAgent({
     async (prompt: string, images: string[] = [], isFollowUp: boolean = false) => {
       setIsStreaming(true);
 
-      // Step 1: Analyze
       addMessage('agent', 'Analysing your prompt…');
       await sleep(1000 + Math.random() * 600);
       addMessage('agent', 'Prompt understood. Preparing generation context…');
@@ -102,10 +96,8 @@ export function PanelAgent({
         await sleep(800 + Math.random() * 400);
       }
 
-      // Step 2: Connect
       addMessage('agent', 'Connecting to Gemini…');
       await sleep(800 + Math.random() * 500);
-
       addMessage('agent', 'Generating HTML & CSS now…');
 
       let accumulated = '';
@@ -146,7 +138,6 @@ export function PanelAgent({
           }
         }
 
-        // Clean up
         let html = accumulated;
         const codeBlockMatch = html.match(/```(?:html)?\s*\n?([\s\S]*?)```/);
         if (codeBlockMatch) html = codeBlockMatch[1].trim();
@@ -155,16 +146,13 @@ export function PanelAgent({
           html = `<div style="font-family:system-ui;padding:2rem;max-width:1200px;margin:0 auto;color:white;background:#0a0a0a;min-height:100vh"><pre style="white-space:pre-wrap">${html}</pre></div>`;
         }
 
-        // Step 3: Sanitize
         await sleep(500);
         addMessage('agent', 'Cleaning up output…');
         await sleep(400);
 
-        // Step 4: Stats
         const stats = analyzeOutput(html);
         addMessage('agent', `Done — ${stats.lines} lines · ${stats.tags} elements · ${stats.styles} styles · ${stats.kb}KB`);
 
-        // Step 5: Progressive reveal
         addMessage('agent', 'Rendering preview…');
         await sleep(300);
 
@@ -172,7 +160,6 @@ export function PanelAgent({
           if (onProgressiveHtml) onProgressiveHtml(partial);
         });
 
-        // Final
         onPreviewReady(html);
 
         await sleep(200);
@@ -197,7 +184,6 @@ export function PanelAgent({
     [API, onPreviewReady, onProgressiveHtml, analyzeOutput, addMessage]
   );
 
-  // On mount: generate for initial prompt
   useEffect(() => {
     if (!initialPrompt) return;
 
@@ -230,34 +216,31 @@ export function PanelAgent({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      {/* Messages — hidden scrollbar */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 scrollbar-none">
         {messages.map((msg) => (
           <div key={msg.id} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
             <div className={cn(
-              'relative max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
+              'relative max-w-[90%] rounded-xl px-3 py-2 text-[13px] leading-relaxed',
               msg.role === 'user'
-                ? 'bg-gradient-to-br from-secondary/80 to-secondary/50 text-foreground border border-border/50'
+                ? 'bg-secondary/70 text-foreground border border-border/40'
                 : msg.type === 'error'
-                ? 'bg-gradient-to-br from-red-500/[0.08] to-red-500/[0.02] text-red-300/90 border border-red-500/[0.15]'
+                ? 'bg-red-500/[0.08] text-red-300/90 border border-red-500/[0.15]'
                 : msg.type === 'status'
-                ? 'bg-secondary/30 text-muted-foreground border border-border/30'
-                : 'bg-gradient-to-br from-secondary/50 to-secondary/20 text-foreground/75 border border-border/30'
+                ? 'bg-secondary/20 text-muted-foreground border border-border/20'
+                : 'bg-secondary/30 text-foreground/70 border border-border/20'
             )}>
               {msg.role === 'agent' && (
-                <div className="flex items-center gap-1.5 mb-2">
-                  <div className="relative w-5 h-5 rounded-md bg-gradient-to-br from-primary/30 to-primary/10 border border-border flex items-center justify-center">
-                    <Bot className="w-3 h-3 text-foreground/80" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 border border-background" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">CodeX Agent</span>
-                  <span className="text-[10px] text-muted-foreground/50">·</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Bot className="w-3 h-3 text-foreground/50" />
+                  <span className="text-[9px] text-muted-foreground/60 font-mono">
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
               )}
               <div className="whitespace-pre-wrap break-words">{msg.content}</div>
               {msg.role === 'user' && (
-                <div className="mt-1.5 text-[10px] text-muted-foreground text-right font-mono">
+                <div className="mt-1 text-[9px] text-muted-foreground/50 text-right font-mono">
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
@@ -265,18 +248,15 @@ export function PanelAgent({
           </div>
         ))}
 
-        {/* Typing indicator when waiting for Gemini response (after last agent message) */}
         {isStreaming && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <div className="bg-secondary/50 border border-border/30 rounded-2xl px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="relative w-5 h-5 rounded-md bg-primary/20 border border-border flex items-center justify-center">
-                  <Bot className="w-3 h-3 text-foreground/80" />
-                </div>
-                <div className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="bg-secondary/30 border border-border/20 rounded-xl px-3 py-2">
+              <div className="flex items-center gap-1.5">
+                <Bot className="w-3 h-3 text-foreground/40" />
+                <div className="flex gap-0.5">
+                  <span className="w-1 h-1 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1 h-1 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-1 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -287,24 +267,24 @@ export function PanelAgent({
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-border/30 bg-gradient-to-b from-transparent to-background/50">
+      <div className="p-2.5 border-t border-border/30">
         <div className="relative group/input">
           <div className="absolute -inset-px rounded-xl pointer-events-none transition-opacity duration-300 opacity-0 bg-gradient-to-br from-primary/20 via-transparent to-primary/10 blur-sm group-focus-within/input:opacity-100" />
-          <div className="relative flex items-center gap-2 p-1.5 rounded-xl bg-secondary/50 border border-border/50 backdrop-blur-md input-3d">
-            <button className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer">
-              <Paperclip className="w-4 h-4" />
+          <div className="relative flex items-center gap-1.5 p-1 rounded-xl bg-secondary/50 border border-border/50 input-3d">
+            <button className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-all cursor-pointer">
+              <Paperclip className="w-3.5 h-3.5" />
             </button>
             <Input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               placeholder="Reply to agent…"
               disabled={isStreaming}
-              className="flex-1 h-9 bg-transparent border-0 text-foreground text-sm placeholder:text-muted-foreground focus-visible:ring-0 px-2" />
+              className="flex-1 h-8 bg-transparent border-0 text-foreground text-[13px] placeholder:text-muted-foreground/50 focus-visible:ring-0 px-1" />
             <Button size="icon" onClick={sendMessage} disabled={!input.trim() || isStreaming}
-              className={cn('h-9 w-9 rounded-lg btn-3d btn-glow transition-all duration-300',
+              className={cn('h-8 w-8 rounded-lg btn-3d btn-glow transition-all duration-300',
                 input.trim() && !isStreaming
                   ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border border-primary shadow-[0_0_24px_-4px_rgba(255,255,255,0.15)]'
                   : 'bg-secondary/50 text-muted-foreground border border-border/50 hover:bg-secondary')}>
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             </Button>
           </div>
         </div>
