@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PanelMembers } from './PanelMembers';
-import { PanelAgent } from './PanelAgent';
+import { PanelAgent, PanelAgentHandle } from './PanelAgent';
 import { PanelPreview } from './PanelPreview';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
 import {
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useWorkspaceSocket, WorkspaceChatMessage } from '@/hooks/useSocket';
 import { createClient } from '@/lib/supabase/client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -40,6 +41,8 @@ export function WorkspaceContent() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // True once the initial DB/sessionStorage check has resolved — gates the PanelAgent mount
+  const [initialLoadResolved, setInitialLoadResolved] = useState(false);
 
   const [activeSide, setActiveSide] = useState<'preview' | 'members'>('preview');
   const [leftWidth, setLeftWidth] = useState(280);
@@ -47,6 +50,63 @@ export function WorkspaceContent() {
   const [now, setNow] = useState('');
 
   const [progressiveHtml, setProgressiveHtml] = useState<string | null>(null);
+  const [remoteGenerating, setRemoteGenerating] = useState(false);
+  const [remoteGeneratingUser, setRemoteGeneratingUser] = useState<{ fullName?: string | null; email: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; fullName?: string | null; avatarUrl?: string | null } | null>(null);
+  const panelAgentRef = useRef<PanelAgentHandle>(null);
+
+  // Fetch the current Supabase user so PanelAgent can include it in chat broadcasts
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setCurrentUser({
+          id: user.id,
+          email: user.email || '',
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        });
+      }
+    });
+  }, [supabase]);
+
+  // Track which HTML we already have so we can skip redundant socket updates
+  const lastHtmlRef = useRef<string | null>(null);
+  if (lastHtmlRef.current === null && previewHtml) lastHtmlRef.current = previewHtml;
+
+  // Subscribe to realtime workspace events for this session
+  const { broadcastChat } = useWorkspaceSocket(sessionId || null, {
+    onHtmlUpdate: useCallback((payload: { htmlContent: string; status?: string; prompt?: string; user?: { fullName?: string | null; email: string } }) => {
+      if (!payload?.htmlContent) return;
+      if (lastHtmlRef.current === payload.htmlContent) return;
+      lastHtmlRef.current = payload.htmlContent;
+      setPreviewHtml(payload.htmlContent);
+      setProgressiveHtml(null);
+      // Another user finished generating — clear remote state
+      if (payload.status === 'generated' || payload.status === 'edited') {
+        setRemoteGenerating(false);
+        setRemoteGeneratingUser(null);
+      }
+    }, []),
+
+    onChatMessage: useCallback((payload: WorkspaceChatMessage) => {
+      // Push remote chat messages into PanelAgent's message list
+      panelAgentRef.current?.appendRemoteMessage({
+        role: payload.role,
+        content: payload.content,
+        type: payload.type as 'status' | 'error' | 'thinking' | undefined,
+        fromUser: payload.user ? (payload.user.fullName || payload.user.email) : undefined,
+      });
+      // Track remote generating state
+      if (payload.role === 'user' && payload.user) {
+        setRemoteGenerating(true);
+        setRemoteGeneratingUser({ fullName: payload.user.fullName, email: payload.user.email });
+      }
+    }, []),
+
+    onMemberChange: useCallback(() => {
+      console.info('[CodeX] member list changed');
+    }, []),
+  });
 
   // Load session — try sessionStorage first, then MongoDB with retry
   useEffect(() => {
@@ -59,9 +119,10 @@ export function WorkspaceContent() {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setSession(parsed);
-          // Also try to load HTML from DB
-          fetchHtmlFromDb();
+          if (!cancelled) setSession(parsed);
+          // Also try to load HTML from DB; mark load resolved only after this finishes
+          await fetchHtmlFromDb();
+          if (!cancelled) setInitialLoadResolved(true);
           return;
         } catch {
           // corrupted sessionStorage, clear and fetch from DB
@@ -92,6 +153,7 @@ export function WorkspaceContent() {
                 if (data.htmlContent) {
                   setPreviewHtml(data.htmlContent);
                 }
+                setInitialLoadResolved(true);
               }
               return;
             }
@@ -113,6 +175,7 @@ export function WorkspaceContent() {
       if (!cancelled) {
         console.warn('[Workspace] Session not found, showing error');
         setLoadError('Session not found. It may not have been saved yet.');
+        setInitialLoadResolved(true);
       }
     };
 
@@ -121,7 +184,7 @@ export function WorkspaceContent() {
   }, [sessionId, API]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch existing generated HTML from MongoDB (when loaded from sessionStorage)
-  const fetchHtmlFromDb = async () => {
+  const fetchHtmlFromDb = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/sessions/${sessionId}`);
       if (res.ok) {
@@ -133,7 +196,7 @@ export function WorkspaceContent() {
     } catch (err) {
       console.warn('[Workspace] Could not fetch HTML:', err);
     }
-  };
+  }, [API, sessionId]);
 
   // Clock
   useEffect(() => {
@@ -320,16 +383,32 @@ export function WorkspaceContent() {
         {/* Center: Chat (narrower, left side) */}
         <div className="relative shrink-0 overflow-hidden border-r border-border/30"
           style={{ width: chatWidth }}>
-          <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/10 to-background/30 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/20 to-background/40 backdrop-blur-sm" />
           <div className="relative h-full">
-            <PanelAgent
-              sessionId={sessionId}
-              initialPrompt={session.prompt}
-              initialFiles={session.files}
-              onPreviewReady={handlePreviewReady}
-              onProgressiveHtml={handleProgressiveHtml}
-              skipInitialGeneration={!!previewHtml}
-            />
+            {initialLoadResolved ? (
+              <PanelAgent
+                ref={panelAgentRef}
+                sessionId={sessionId}
+                initialPrompt={session.prompt}
+                initialFiles={session.files}
+                initialSavedHtml={previewHtml}
+                onPreviewReady={handlePreviewReady}
+                onProgressiveHtml={handleProgressiveHtml}
+                broadcastChat={broadcastChat}
+                remoteGenerating={remoteGenerating}
+                remoteGeneratingUser={remoteGeneratingUser}
+                currentUser={currentUser}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/40 border border-border/30 grid place-items-center animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono tracking-wider">Loading session…</p>
+                </div>
+              </div>
+            )}
           </div>
           <ResizeHandle onMouseDown={startResizeChat} side="right" />
         </div>
