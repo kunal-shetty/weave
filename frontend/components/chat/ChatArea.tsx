@@ -176,16 +176,16 @@ export function ChatArea({ onMenuToggle }: { onMenuToggle?: () => void }) {
               className="btn-3d btn-glow gap-1.5 sm:gap-2 text-xs sm:text-sm bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
               onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
             >
-              {isMobile ? 'v1.0' : 'CodeX v1.0'}
+              {isMobile ? 'v1.0' : 'Promptify v1.0'}
               <ChevronDown className={cn('w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-300', modelDropdownOpen && 'rotate-180')} />
             </Button>
             {modelDropdownOpen && (
               <div className="dropdown-menu">
                 <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                  CodeX v1.0 — UI Generator
+                  Promptify v1.0 — UI Generator
                 </button>
                 <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                  CodeX v0.5 — Beta
+                  Promptify v0.5 — Beta
                 </button>
               </div>
             )}
@@ -342,8 +342,8 @@ export function ChatArea({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 px-1">Model</p>
                         <div className="grid grid-cols-2 gap-1.5 mb-3">
                           {[
-                            { id: 'codex-v1', label: 'CodeX v1.0', sub: 'UI Generator' },
-                            { id: 'codex-beta', label: 'CodeX v0.5', sub: 'Beta' },
+                            { id: 'codex-v1', label: 'Promptify v1.0', sub: 'UI Generator' },
+                            { id: 'codex-beta', label: 'Promptify v0.5', sub: 'Beta' },
                           ].map((m) => (
                             <button key={m.id} onClick={() => setModel(m.id as 'codex-v1' | 'codex-beta')}
                               className={cn('text-left px-2.5 py-2 rounded-lg border text-xs transition-all',
