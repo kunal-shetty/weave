@@ -67,7 +67,7 @@ async function bootstrap() {
   await connectMongo();
   connectSupabase(); // non-blocking validation
   httpServer.listen(PORT, () => {
-    console.log(`🚀 CodeX API running on http://localhost:${PORT}`);
+    console.log(`🚀 Promptify API running on http://localhost:${PORT}`);
   });
 }
 
