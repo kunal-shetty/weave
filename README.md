@@ -124,6 +124,19 @@ Both flows share: MongoDB persistence, Supabase metadata mirroring, Socket.IO re
 | [docs/FEATURES.md](docs/FEATURES.md) | Feature matrix mapped to problem statement requirements |
 | [docs/SETUP.md](docs/SETUP.md) | Detailed setup guide with troubleshooting |
 | [docs/CHECKLIST.md](docs/CHECKLIST.md) | Acceptance checklist verification (Section 24) |
+| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | 5–8 minute demo script covering all input modes |
+
+## Seed Data
+
+| File | Description |
+|------|-------------|
+| [seed/hero-section.json](seed/hero-section.json) | Sanitized sample data for a HeroSection (section + 7 elements + 2 review items) |
+| `frontend/sections/generated/HeroSection.tsx` | Reference generated section component (checked in as example output) |
+
+**To seed the database:**
+```bash
+npm run seed   # Creates sample sections and elements in MongoDB
+```
 
 ---
 
