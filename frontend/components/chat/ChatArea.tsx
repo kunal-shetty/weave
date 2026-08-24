@@ -2,7 +2,7 @@
 
 import {
   ChevronDown, Settings, Upload, Lightbulb, FileText, ImageIcon,
-  ArrowUp, Paperclip, X, Check, Loader2, Sliders,
+  ArrowUp, Paperclip, X, Check, Loader2, Sliders, Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useRef, useEffect } from 'react';
@@ -10,13 +10,15 @@ import { useRouter } from 'next/navigation';
 import { ParticleOrb } from '@/components/shared/particle-orb';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
 import { createClient } from '@/lib/supabase/client';
+import { useIsMobile } from '@/components/ui/use-mobile';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-export function ChatArea() {
+export function ChatArea({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const router = useRouter();
   const supabase = createClient();
+  const isMobile = useIsMobile();
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
@@ -44,6 +46,9 @@ export function ChatArea() {
       if (e.key === 'Escape') {
         setSettingsOpen(false);
         setOptionsOpen(false);
+        setModelDropdownOpen(false);
+        setConfigDropdownOpen(false);
+        setExportDropdownOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -154,35 +159,47 @@ export function ChatArea() {
       <ShaderBackground />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-border/50 backdrop-blur-sm bg-background/30">
-        <div className="relative">
-          <Button
-            className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
-            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-          >
-            CodeX v1.0
-            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
-          </Button>
-          {modelDropdownOpen && (
-            <div className="dropdown-menu">
-              <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                CodeX v1.0 — UI Generator
-              </button>
-              <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
-                CodeX v0.5 — Beta
-              </button>
-            </div>
-          )}
-        </div>
-
+      <header className="relative z-10 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-border/50 backdrop-blur-sm bg-background/30">
         <div className="flex items-center gap-2">
+          {onMenuToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 sm:hidden text-muted-foreground hover:text-foreground"
+              onClick={onMenuToggle}
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+          )}
           <div className="relative">
             <Button
-              className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
+              className="btn-3d btn-glow gap-1.5 sm:gap-2 text-xs sm:text-sm bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
+              onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+            >
+              {isMobile ? 'v1.0' : 'CodeX v1.0'}
+              <ChevronDown className={cn('w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-300', modelDropdownOpen && 'rotate-180')} />
+            </Button>
+            {modelDropdownOpen && (
+              <div className="dropdown-menu">
+                <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
+                  CodeX v1.0 — UI Generator
+                </button>
+                <button className="dropdown-item" onClick={() => setModelDropdownOpen(false)}>
+                  CodeX v0.5 — Beta
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="relative">
+            <Button
+              className="btn-3d btn-glow gap-1.5 sm:gap-2 text-xs sm:text-sm bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
               onClick={() => setConfigDropdownOpen(!configDropdownOpen)}
             >
-              <Settings className="w-4 h-4" />
-              Configuration
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {isMobile ? '' : 'Configuration'}
             </Button>
             {configDropdownOpen && (
               <div className="dropdown-menu">
@@ -196,11 +213,11 @@ export function ChatArea() {
 
           <div className="relative">
             <Button
-              className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
+              className="btn-3d btn-glow gap-1.5 sm:gap-2 text-xs sm:text-sm bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm border border-border/30 shadow-lg"
               onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
             >
-              <Upload className="w-4 h-4" />
-              Export
+              <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {isMobile ? '' : 'Export'}
             </Button>
             {exportDropdownOpen && (
               <div className="dropdown-menu">
@@ -215,46 +232,46 @@ export function ChatArea() {
       </header>
 
       {/* Main Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-6">
-        <div className="relative mb-8">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-4 sm:pb-6 overflow-y-auto">
+        <div className="relative mb-4 sm:mb-8">
           <ParticleOrb />
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-semibold text-foreground mb-8 text-center font-[var(--font-heading)] tracking-tight">
-          Ready to Create Something New?
+        <h1 className="text-2xl sm:text-4xl font-semibold text-foreground mb-4 sm:mb-8 text-center font-[var(--font-heading)] tracking-tight px-2">
+          {isMobile ? 'Create Something New' : 'Ready to Create Something New?'}
         </h1>
 
         {/* Quick Actions */}
-        <div className="flex items-center gap-3 mb-8">
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-8 px-2">
+          <Button variant="secondary" className="btn-3d btn-glow gap-1.5 sm:gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium text-xs sm:text-sm"
             onClick={() => { setPrompt('Create a hero section with an athlete image on the left, bold headline, 3 stat cards, and a red CTA button.'); }}>
-            <ImageIcon className="w-4 h-4" />
-            Create Image
+            <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            {isMobile ? 'Image' : 'Create Image'}
           </Button>
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+          <Button variant="secondary" className="btn-3d btn-glow gap-1.5 sm:gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium text-xs sm:text-sm"
             onClick={() => { setPrompt('Brainstorm a landing page layout for a fitness brand with modern dark theme and gradient accents.'); }}>
-            <Lightbulb className="w-4 h-4" />
-            Brainstorm
+            <Lightbulb className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            {isMobile ? 'Ideas' : 'Brainstorm'}
           </Button>
-          <Button variant="secondary" className="btn-3d btn-glow gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium"
+          <Button variant="secondary" className="btn-3d btn-glow gap-1.5 sm:gap-2 bg-gradient-to-br from-secondary/90 to-secondary/70 text-foreground hover:from-secondary/70 hover:to-secondary/50 backdrop-blur-sm shadow-lg font-medium text-xs sm:text-sm"
             onClick={() => { setPrompt('Make a plan for a multi-section landing page: hero, features grid, testimonials, pricing, and footer.'); }}>
-            <FileText className="w-4 h-4" />
-            Make a plan
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            {isMobile ? 'Plan' : 'Make a plan'}
           </Button>
         </div>
 
         {/* Input Area */}
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-4xl px-2 sm:px-0">
           {isRecording && (
-            <div className="mb-3 input-3d bg-gradient-to-r from-black/90 via-black/95 to-black/90 backdrop-blur-xl rounded-full border border-border/50 px-6 py-3 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-300">
-              <div className="flex items-center justify-between gap-6">
+            <div className="mb-3 input-3d bg-gradient-to-r from-black/90 via-black/95 to-black/90 backdrop-blur-xl rounded-full border border-border/50 px-4 sm:px-6 py-3 shadow-2xl animate-in slide-in-from-bottom-2 fade-in duration-300">
+              <div className="flex items-center justify-between gap-4 sm:gap-6">
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                  <p className="text-sm font-medium text-foreground">Recording...</p>
+                  <p className="text-xs sm:text-sm font-medium text-foreground">Recording...</p>
                 </div>
-                <div className="flex-1 flex items-center justify-center gap-[2px] h-10 overflow-hidden">
-                  {[...Array(60)].map((_, i) => (
+                <div className="flex-1 flex items-center justify-center gap-[2px] h-8 sm:h-10 overflow-hidden">
+                  {[...Array(isMobile ? 30 : 60)].map((_, i) => (
                     <div
                       key={i}
                       className="voice-wave-bar-horizontal bg-foreground/70 rounded-full shrink-0"
@@ -282,9 +299,9 @@ export function ChatArea() {
           {attachedFiles.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
               {attachedFiles.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/30 text-sm text-foreground/80">
+                <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 border border-border/30 text-xs sm:text-sm text-foreground/80">
                   <Paperclip className="w-3 h-3" />
-                  <span className="truncate max-w-[150px]">{file.name}</span>
+                  <span className="truncate max-w-[100px] sm:max-w-[150px]">{file.name}</span>
                   <button onClick={() => removeFile(i)} className="text-muted-foreground hover:text-foreground ml-1 cursor-pointer">
                     <X className="w-3 h-3" />
                   </button>
@@ -293,31 +310,31 @@ export function ChatArea() {
             </div>
           )}
 
-          <div className="input-3d bg-gradient-to-br from-secondary/70 via-secondary/60 to-secondary/50 backdrop-blur-xl rounded-2xl border border-border/50 p-4 shadow-2xl">
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
+          <div className="input-3d bg-gradient-to-br from-secondary/70 via-secondary/60 to-secondary/50 backdrop-blur-xl rounded-2xl border border-border/50 p-3 sm:p-4 shadow-2xl">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-start gap-2 sm:gap-3">
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Describe the UI you want to build... (e.g. A split-hero section with athlete image left, headline, 3 stat cards, red CTA)"
-                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground text-lg min-h-[80px] font-normal"
+                  placeholder={isMobile ? "Describe the UI you want to build..." : "Describe the UI you want to build... (e.g. A split-hero section with athlete image left, headline, 3 stat cards, red CTA)"}
+                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground text-base sm:text-lg min-h-[60px] sm:min-h-[80px] font-normal"
                 />
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <input ref={fileInputRef} type="file" multiple accept="image/*,.jsx,.tsx,.js,.ts" onChange={handleFileAttach} className="hidden" />
-                  <Button variant="ghost" size="sm" className="btn-3d gap-2 text-muted-foreground hover:text-foreground" onClick={() => fileInputRef.current?.click()}>
-                    <Paperclip className="w-4 h-4" />
-                    Attach
+                  <Button variant="ghost" size="sm" className="btn-3d gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm" onClick={() => fileInputRef.current?.click()}>
+                    <Paperclip className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Attach</span>
                   </Button>
                   {/* Settings dropdown */}
                   <div className="relative">
                     <Button variant="ghost" size="sm"
-                      className="btn-3d gap-2 text-muted-foreground hover:text-foreground"
+                      className="btn-3d gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
                       onClick={() => { setSettingsOpen((v) => !v); setOptionsOpen(false); }}>
-                      <Settings className="w-4 h-4" />
-                      Settings
+                      <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Settings</span>
                       <ChevronDown className={cn('w-3 h-3 transition-transform', settingsOpen && 'rotate-180')} />
                     </Button>
                     {settingsOpen && (
@@ -371,10 +388,10 @@ export function ChatArea() {
                   {/* Options dropdown */}
                   <div className="relative">
                     <Button variant="ghost" size="sm"
-                      className="btn-3d gap-2 text-muted-foreground hover:text-foreground"
+                      className="btn-3d gap-1 sm:gap-2 text-muted-foreground hover:text-foreground text-xs sm:text-sm"
                       onClick={() => { setOptionsOpen((v) => !v); setSettingsOpen(false); }}>
-                      <Sliders className="w-4 h-4" />
-                      Options
+                      <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Options</span>
                       <ChevronDown className={cn('w-3 h-3 transition-transform', optionsOpen && 'rotate-180')} />
                     </Button>
                     {optionsOpen && (
@@ -438,17 +455,17 @@ export function ChatArea() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="btn-3d h-9 w-9 text-white hover:text-foreground" onClick={() => setIsRecording(true)}>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Button variant="ghost" size="icon" className="btn-3d h-8 w-8 sm:h-9 sm:w-9 text-white hover:text-foreground" onClick={() => setIsRecording(true)}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z" /><path d="M4 7a1 1 0 0 0-2 0 6 6 0 0 0 5 5.917V15a1 1 0 0 0 2 0v-2.083A6 6 0 0 0 14 7a1 1 0 0 0-2 0 4 4 0 0 1-8 0Z" /></svg>
                   </Button>
                   <Button
                     size="icon"
                     disabled={isSubmitting || (!prompt.trim() && attachedFiles.length === 0)}
-                    className="btn-3d btn-glow h-9 w-9 rounded-full bg-gradient-to-br from-white via-neutral-200 to-neutral-400 hover:from-neutral-100 hover:to-neutral-300 text-black shadow-xl disabled:opacity-40"
+                    className="btn-3d btn-glow h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-gradient-to-br from-white via-neutral-200 to-neutral-400 hover:from-neutral-100 hover:to-neutral-300 text-black shadow-xl disabled:opacity-40"
                     onClick={handleSubmit}
                   >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowUp className="w-5 h-5" />}
+                    {isSubmitting ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </Button>
                 </div>
               </div>
