@@ -115,7 +115,7 @@ export function WorkspaceContent() {
     }, []),
 
     onMemberChange: useCallback(() => {
-      console.info('[CodeX] member list changed');
+      console.info('[Promptify] member list changed');
     }, []),
   });
 
