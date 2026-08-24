@@ -6,6 +6,7 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
-    "seed": "cd backend && npm run seed"
+    "seed": "cd backend && npm run seed",
+    "demo": "echo 'Run: npm run dev:backend && npm run dev:frontend' && echo 'Then open http://localhost:3000'"
   }
 }
