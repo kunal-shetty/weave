@@ -1,5 +1,5 @@
 -- ============================================================
--- CodeX — Supabase KV Metadata Migration
+-- Promptify — Supabase KV Metadata Migration
 -- Run this in the Supabase SQL editor (or via supabase db push)
 -- ============================================================
 
