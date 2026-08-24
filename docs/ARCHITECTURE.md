@@ -1,8 +1,8 @@
-# CodeX — System Architecture
+# Promptify — System Architecture
 
 ## Overview
 
-CodeX is a dual-mode AI-assisted UI generation platform built for SIH 2026 (PS7). It accepts wireframe images, existing React code, and natural-language prompts — in any combination — and produces CMS-bound React sections with stable field IDs, Redux data binding, and live content editing.
+Promptify is a dual-mode AI-assisted UI generation platform built for SIH 2026 (PS7). It accepts wireframe images, existing React code, and natural-language prompts — in any combination — and produces CMS-bound React sections with stable field IDs, Redux data binding, and live content editing.
 
 The system has **two generation flows** that share infrastructure:
 
