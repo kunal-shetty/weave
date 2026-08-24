@@ -1,6 +1,6 @@
-# CodeX — Demo Script (5–8 minutes)
+# Promptify — Demo Script (5–8 minutes)
 
-> **Purpose:** Walk through CodeX's three input modes (wireframe, prompt, code) and core features.  
+> **Purpose:** Walk through Promptify's three input modes (wireframe, prompt, code) and core features.  
 > **Prerequisites:** Backend running on `localhost:4000`, frontend on `localhost:3000`, MongoDB running, API keys configured.
 
 ---
@@ -157,7 +157,7 @@
 
 *Summarize:*
 
-> "CodeX accepts three input modes — wireframe, code, and prompt — and generates CMS-bound React sections with stable field IDs, Redux data binding, and live content editing. The workspace flow adds real-time collaboration, chat, and a review queue with AI confidence scoring. Regeneration is a merge, not a rewrite, so live content edits are never wiped out."
+> "Promptify accepts three input modes — wireframe, code, and prompt — and generates CMS-bound React sections with stable field IDs, Redux data binding, and live content editing. The workspace flow adds real-time collaboration, chat, and a review queue with AI confidence scoring. Regeneration is a merge, not a rewrite, so live content edits are never wiped out."
 
 ---
 
