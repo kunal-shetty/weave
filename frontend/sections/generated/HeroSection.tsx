@@ -89,7 +89,7 @@ export default function HeroSection() {
       </div>
 
       {/* ── Right: Content ───────────────────────────────────────────────── */}
-      <div className="md:w-1/2 flex flex-col justify-center px-8 md:px-16 py-12 space-y-6">
+      <div className="md:w-1/2 flex flex-col justify-center px-6 md:px-16 py-8 md:py-12 space-y-4 md:space-y-6">
 
         {/* Brand badge */}
         <div
@@ -102,28 +102,28 @@ export default function HeroSection() {
         {/* Headline main */}
         <h1
           id={ids.headlineMain}
-          className="text-5xl md:text-6xl font-black leading-none tracking-tight uppercase"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-none tracking-tight uppercase"
           dangerouslySetInnerHTML={{ __html: txt(ids.headlineMain) }}
         />
 
         {/* Headline sub */}
         <h2
           id={ids.headlineSub}
-          className="text-lg font-medium text-gray-300"
+          className="text-base sm:text-lg font-medium text-gray-300"
           dangerouslySetInnerHTML={{ __html: txt(ids.headlineSub) }}
         />
 
         {/* Description */}
         <p
           id={ids.description}
-          className="text-gray-400 max-w-md leading-relaxed"
+          className="text-sm sm:text-base text-gray-400 max-w-md leading-relaxed"
           dangerouslySetInnerHTML={{ __html: txt(ids.description) }}
         />
 
         {/* CTA Button */}
         <button
           id={ids.ctaButton}
-          className="self-start px-8 py-4 font-bold tracking-wider uppercase text-white transition-transform active:scale-95 hover:brightness-110"
+          className="self-start px-6 sm:px-8 py-3 sm:py-4 font-bold tracking-wider uppercase text-white text-sm sm:text-base transition-transform active:scale-95 hover:brightness-110"
           style={{ backgroundColor: ACCENT, borderRadius: '2px' }}
           dangerouslySetInnerHTML={{ __html: txt(ids.ctaButton) }}
         />
@@ -131,13 +131,12 @@ export default function HeroSection() {
         {/* Stat cards */}
         <div
           id={ids.cards}
-          className="grid gap-4"
-          style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))` }}
+          className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3"
         >
           {cards.map((card, idx) => (
             <div
               key={card.fieldId1 || idx}
-              className="rounded-xl p-4 border"
+              className="rounded-xl p-3 sm:p-4 border"
               style={{ borderColor: `${ACCENT}30`, backgroundColor: `${ACCENT}08` }}
             >
               <div
