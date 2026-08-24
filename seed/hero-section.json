@@ -1,5 +1,5 @@
 {
-  "_comment": "Seed data for CodeX — HeroSection reference output. Sanitized sample data, no production/customer data.",
+  "_comment": "Seed data for Promptify — HeroSection reference output. Sanitized sample data, no production/customer data.",
   "section": {
     "sectionId": "7001234567",
     "sectionName": "HeroSection",
