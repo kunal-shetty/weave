@@ -1,0 +1,138 @@
+{
+  "_comment": "Seed data for CodeX — HeroSection reference output. Sanitized sample data, no production/customer data.",
+  "section": {
+    "sectionId": "7001234567",
+    "sectionName": "HeroSection",
+    "pageName": "Home",
+    "platform": "Website",
+    "isGenerated": true,
+    "sectionStatus": "Approved",
+    "wireframeS3Key": null,
+    "wireframeUrl": null,
+    "variations": 1,
+    "cardGridColumns": 3,
+    "accentColor": "#ef4444",
+    "inputModes": ["prompt"],
+    "generatedJsx": "/* See frontend/sections/generated/HeroSection.tsx for the full reference output */",
+    "createdAt": "2026-08-20T10:00:00.000Z",
+    "updatedAt": "2026-08-20T10:00:00.000Z"
+  },
+  "elements": [
+    {
+      "fieldId": "7001234001",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "heroImage",
+      "contentType": "Image",
+      "content": "/placeholder.jpg",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234002",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "brandBadge",
+      "contentType": "Text",
+      "content": "PULSE FIT",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234003",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "headlineMain",
+      "contentType": "Text",
+      "content": "CHALLENGE YOUR LIMITS",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234004",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "headlineSub",
+      "contentType": "Text",
+      "content": "Be a part of the tribe that's limitless.",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234005",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "description",
+      "contentType": "Textfield",
+      "content": "Join trainer-led workout sessions designed to kickstart your fitness journey.",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234006",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "ctaButton",
+      "contentType": "Button",
+      "content": "FIND A WORKOUT",
+      "css": null,
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    },
+    {
+      "fieldId": "7001234007",
+      "sectionId": "7001234567",
+      "pageName": "Home",
+      "elementName": "statBadges",
+      "contentType": "Cards",
+      "content": "",
+      "css": null,
+      "loop": [
+        {
+          "fieldId1": "7001234008",
+          "fieldId2": "7001234009",
+          "value1": "1000+",
+          "value2": "Community Members"
+        },
+        {
+          "fieldId1": "7001234010",
+          "fieldId2": "7001234011",
+          "value1": "40+",
+          "value2": "Fitness Programmes"
+        },
+        {
+          "fieldId1": "7001234012",
+          "fieldId2": "7001234013",
+          "value1": "150+",
+          "value2": "Fitness Channels"
+        }
+      ],
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    }
+  ],
+  "reviews": [
+    {
+      "reviewId": "rev-001",
+      "sessionId": "demo-session",
+      "sectionId": "7001234567",
+      "type": "wireframe_region",
+      "confidence": 92,
+      "status": "approved",
+      "wireframeLabel": "Hero Image Region",
+      "wireframeSuggestion": "Left-half hero image with gradient overlay",
+      "createdAt": "2026-08-20T10:05:00.000Z"
+    },
+    {
+      "reviewId": "rev-002",
+      "sessionId": "demo-session",
+      "sectionId": "7001234567",
+      "type": "field_change",
+      "confidence": 85,
+      "status": "approved",
+      "fieldId": "7001234003",
+      "elementName": "headlineMain",
+      "previousContent": "PUSH YOUR LIMITS",
+      "newContent": "CHALLENGE YOUR LIMITS",
+      "createdAt": "2026-08-20T10:06:00.000Z"
+    }
+  ]
+}
