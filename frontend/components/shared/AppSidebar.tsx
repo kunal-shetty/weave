@@ -93,7 +93,7 @@ export function AppSidebar() {
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold text-sidebar-foreground font-[var(--font-heading)] tracking-tight whitespace-nowrap">
-              CodeX
+              Promptify
             </span>
             <span className="ml-auto text-xs text-muted-foreground bg-sidebar-accent px-2 py-0.5 rounded-full whitespace-nowrap">
               T19
@@ -177,7 +177,7 @@ export function AppSidebar() {
               </div>
               <div className="text-center space-y-1">
                 <h4 className="text-sm font-semibold text-sidebar-foreground font-[var(--font-heading)]">
-                  SIH 2026 — Team CodeX
+                  SIH 2026 — Team Promptify
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   AI-Assisted UI Generation from Wireframe, Code &amp; Prompt. Problem Statement PS7.
@@ -242,7 +242,7 @@ export function AppSidebar() {
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold text-sidebar-foreground font-[var(--font-heading)] tracking-tight whitespace-nowrap">
-              CodeX
+              Promptify
             </span>
             <span className="ml-auto text-xs text-muted-foreground bg-sidebar-accent px-2 py-0.5 rounded-full whitespace-nowrap">
               T19
@@ -408,7 +408,7 @@ export function AppSidebar() {
             </div>
             <div className="text-center space-y-1">
               <h4 className="text-sm font-semibold text-sidebar-foreground font-[var(--font-heading)]">
-                SIH 2026 — Team CodeX
+                SIH 2026 — Team Promptify
               </h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 AI-Assisted UI Generation from Wireframe, Code &amp; Prompt. Problem Statement PS7.
