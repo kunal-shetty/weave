@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
   Wand2, Eye, LayoutGrid, Clock, Zap, Crown, LogOut,
-  PanelLeftClose, PanelLeftOpen, User, FolderOpen,
+  PanelLeftClose, PanelLeftOpen, User, FolderOpen, Menu, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/workspace/collapsible-section';
@@ -12,6 +12,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { useIsMobile } from '@/components/ui/use-mobile';
 import type { User as SupaUser } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -26,8 +27,10 @@ export function AppSidebar() {
   const router = useRouter();
   const jobHistory = useSelector((s: RootState) => s.studio.jobHistory);
   const supabase = createClient();
+  const isMobile = useIsMobile();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<SupaUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
@@ -56,6 +59,174 @@ export function AppSidebar() {
   const displayEmail = profile?.email || user?.email || '';
   const avatarUrl = profile?.avatar_url || null;
 
+  // Mobile: show hamburger button + overlay sidebar
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile toggle button */}
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="fixed top-3 left-3 z-50 p-2 rounded-lg bg-sidebar/90 border border-border/50 backdrop-blur-xl text-sidebar-foreground hover:bg-sidebar-accent transition-all"
+          aria-label="Toggle sidebar"
+        >
+          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+
+        {/* Mobile overlay */}
+        {mobileOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+
+        {/* Mobile sidebar */}
+        <aside
+          className={cn(
+            'fixed inset-y-0 left-0 z-40 w-72 bg-sidebar border-r border-sidebar-border flex flex-col shrink-0 transition-transform duration-300',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          )}
+        >
+          {/* Header */}
+          <div className="p-4 flex items-center gap-3 border-b border-sidebar-border min-h-[57px]">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg font-semibold text-sidebar-foreground font-[var(--font-heading)] tracking-tight whitespace-nowrap">
+              CodeX
+            </span>
+            <span className="ml-auto text-xs text-muted-foreground bg-sidebar-accent px-2 py-0.5 rounded-full whitespace-nowrap">
+              T19
+            </span>
+          </div>
+
+          {/* Nav */}
+          <div className="px-3 py-4 flex-1 overflow-y-auto space-y-2">
+            <CollapsibleSection
+              title="My Profile"
+              icon={<User className="w-3.5 h-3.5" />}
+              defaultOpen={true}
+            >
+              <div className="space-y-1 px-1">
+                <Link href="/" onClick={() => setMobileOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'btn-3d w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent font-medium',
+                      pathname === '/' && 'bg-sidebar-accent'
+                    )}
+                  >
+                    <User className="w-4 h-4" /> Dashboard
+                  </Button>
+                </Link>
+                <Link href="/generate" onClick={() => setMobileOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'btn-3d w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent font-medium',
+                      pathname === '/generate' && 'bg-sidebar-accent'
+                    )}
+                  >
+                    <Wand2 className="w-4 h-4" /> Generator Studio
+                  </Button>
+                </Link>
+                <Link href="/sections" onClick={() => setMobileOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'btn-3d w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent font-medium',
+                      pathname === '/sections' && 'bg-sidebar-accent'
+                    )}
+                  >
+                    <LayoutGrid className="w-4 h-4" /> All Sections
+                  </Button>
+                </Link>
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Projects"
+              icon={<FolderOpen className="w-3.5 h-3.5" />}
+              defaultOpen={true}
+            >
+              <div className="space-y-1 px-1">
+                {jobHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-3 py-2">No projects yet. Start generating!</p>
+                ) : (
+                  jobHistory.map((job) => (
+                    <Link key={job.id} href={`/preview/${job.pageName}`} onClick={() => setMobileOpen(false)}>
+                      <Button
+                        variant="ghost"
+                        className="btn-3d w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent font-medium text-sm"
+                      >
+                        <Eye className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{job.sectionName}</span>
+                      </Button>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </CollapsibleSection>
+          </div>
+
+          {/* Upgrade card */}
+          <div className="p-3">
+            <div className="card-3d bg-sidebar-accent rounded-xl p-4 space-y-3">
+              <div className="w-10 h-10 rounded-lg bg-sidebar-accent/50 flex items-center justify-center mx-auto">
+                <Crown className="w-5 h-5 text-primary" />
+              </div>
+              <div className="text-center space-y-1">
+                <h4 className="text-sm font-semibold text-sidebar-foreground font-[var(--font-heading)]">
+                  SIH 2026 — Team CodeX
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  AI-Assisted UI Generation from Wireframe, Code &amp; Prompt. Problem Statement PS7.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* User Profile */}
+          {user && (
+            <div className="p-3 border-t border-sidebar-border">
+              <div className="flex items-center gap-3">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="w-8 h-8 rounded-full border border-sidebar-border object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-sidebar-foreground shrink-0">
+                    {displayName[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-sidebar-foreground truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {displayEmail}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleSignOut}
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </>
+    );
+  }
+
+  // Desktop: normal sidebar
   return (
     <aside
       className={cn(
