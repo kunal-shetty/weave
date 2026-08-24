@@ -1,8 +1,8 @@
-# CodeX — Feature Matrix vs Problem Statement
+# Promptify — Feature Matrix vs Problem Statement
 
 ## Problem Statement Alignment
 
-This document maps every feature in CodeX to the specific requirements in **PS7: AI-Assisted UI Generation from Wireframe, Code, and Prompt**.
+This document maps every feature in Promptify to the specific requirements in **PS7: AI-Assisted UI Generation from Wireframe, Code, and Prompt**.
 
 ---
 
