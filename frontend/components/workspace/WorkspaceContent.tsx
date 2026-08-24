@@ -11,11 +11,13 @@ import {
   ArrowLeft, PanelLeftClose, PanelLeftOpen,
   PanelRightClose, PanelRightOpen, Sparkles, CircleDot,
   ExternalLink, Pencil, ClipboardCheck, Users,
+  MessageSquare, Eye, Menu, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useWorkspaceSocket, WorkspaceChatMessage } from '@/hooks/useSocket';
 import { createClient } from '@/lib/supabase/client';
+import { useIsMobile } from '@/components/ui/use-mobile';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -33,11 +35,14 @@ interface SessionData {
   createdAt: string;
 }
 
+type MobileTab = 'members' | 'reviews' | 'chat' | 'preview';
+
 export function WorkspaceContent() {
   const params = useParams();
   const router = useRouter();
   const sessionId = (params?.sessionId as string) || '';
   const supabase = createClient();
+  const isMobile = useIsMobile();
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -50,6 +55,10 @@ export function WorkspaceContent() {
   const [leftWidth, setLeftWidth] = useState(280);
   const [chatWidth, setChatWidth] = useState(340);
   const [now, setNow] = useState('');
+
+  // Mobile tab state
+  const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [progressiveHtml, setProgressiveHtml] = useState<string | null>(null);
   const [remoteGenerating, setRemoteGenerating] = useState(false);
@@ -273,7 +282,7 @@ export function WorkspaceContent() {
     return (
       <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
         <ShaderBackground />
-        <div className="relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
+        <div className="relative z-10 flex flex-col items-center gap-4 text-center max-w-sm px-4">
           <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 grid place-items-center">
             <span className="text-2xl">⚠</span>
           </div>
@@ -308,6 +317,142 @@ export function WorkspaceContent() {
     );
   }
 
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="relative h-screen overflow-hidden flex flex-col">
+        <ShaderBackground />
+
+        {/* Mobile Top Bar */}
+        <header className="relative z-20 h-12 flex items-center justify-between px-3 shrink-0 border-b border-border/30 backdrop-blur-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/20">
+          <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-border/50 to-transparent opacity-50" />
+
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href="/" className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all active:scale-90" aria-label="Back to home">
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </Link>
+            <div className="h-4 w-px bg-border/50" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="relative w-5 h-5 rounded-md bg-gradient-to-br from-primary/15 to-primary/5 border border-border/30 grid place-items-center shrink-0">
+                <Sparkles className="w-2.5 h-2.5 text-foreground" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 border border-background" />
+              </div>
+              <h1 className="text-[11px] font-medium text-foreground font-[var(--font-heading)] truncate max-w-[180px]">{session.prompt}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {previewHtml && (
+              <>
+                <a href={`data:text/html,${encodeURIComponent(previewHtml)}`} target="_blank" rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer"
+                  title="Open preview in new tab">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <Link href={`/edit/${sessionId}`}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all cursor-pointer"
+                  title="Edit content">
+                  <Pencil className="w-3.5 h-3.5" />
+                </Link>
+              </>
+            )}
+          </div>
+        </header>
+
+        {/* Mobile tab content */}
+        <div className="relative z-10 flex-1 overflow-hidden">
+          {mobileTab === 'members' && (
+            <PanelMembers sessionId={sessionId} />
+          )}
+          {mobileTab === 'reviews' && (
+            <ReviewQueue sessionId={sessionId} />
+          )}
+          {mobileTab === 'chat' && (
+            <div className="h-full relative">
+              <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/20 to-background/40 backdrop-blur-sm" />
+              <div className="relative h-full">
+                {initialLoadResolved ? (
+                  <PanelAgent
+                    ref={panelAgentRef}
+                    sessionId={sessionId}
+                    initialPrompt={session.prompt}
+                    initialFiles={session.files}
+                    initialSavedHtml={previewHtml}
+                    onPreviewReady={handlePreviewReady}
+                    onProgressiveHtml={handleProgressiveHtml}
+                    broadcastChat={broadcastChat}
+                    remoteGenerating={remoteGenerating}
+                    remoteGeneratingUser={remoteGeneratingUser}
+                    currentUser={currentUser}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/40 border border-border/30 grid place-items-center animate-pulse">
+                        <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground font-mono tracking-wider">Loading session…</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {mobileTab === 'preview' && (
+            <PanelPreview previewHtml={displayHtml} sessionId={sessionId} />
+          )}
+        </div>
+
+        {/* Mobile bottom tab bar */}
+        <div className="relative z-20 shrink-0 border-t border-border/30 bg-background/80 backdrop-blur-xl">
+          <div className="flex items-center h-12">
+            <button
+              onClick={() => setMobileTab('members')}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 h-full transition-all',
+                mobileTab === 'members' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <Users className="w-4 h-4" />
+              <span className="text-[9px] font-medium">Team</span>
+            </button>
+            <button
+              onClick={() => setMobileTab('reviews')}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 h-full transition-all',
+                mobileTab === 'reviews' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              <span className="text-[9px] font-medium">Reviews</span>
+            </button>
+            <button
+              onClick={() => setMobileTab('chat')}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 h-full transition-all',
+                mobileTab === 'chat' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-[9px] font-medium">Chat</span>
+            </button>
+            <button
+              onClick={() => setMobileTab('preview')}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 h-full transition-all',
+                mobileTab === 'preview' ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <Eye className="w-4 h-4" />
+              <span className="text-[9px] font-medium">Preview</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="relative h-screen overflow-hidden flex flex-col">
       <ShaderBackground />
