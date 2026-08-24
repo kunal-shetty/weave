@@ -53,7 +53,7 @@ function AuthPageInner() {
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground font-[var(--font-heading)]">CodeX</span>
+          <span className="text-lg font-bold text-foreground font-[var(--font-heading)]">Promptify</span>
         </div>
 
         <div className="max-w-sm">
@@ -62,7 +62,7 @@ function AuthPageInner() {
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed mb-8">
             Paste a wireframe, drop some code, or just describe what you need.
-            CodeX generates production-ready UI components in seconds.
+            Promptify generates production-ready UI components in seconds.
           </p>
 
           <div className="flex flex-col gap-3">
@@ -76,7 +76,7 @@ function AuthPageInner() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} CodeX. All rights reserved.
+          © {new Date().getFullYear()} Promptify. All rights reserved.
         </p>
       </div>
 
@@ -88,12 +88,12 @@ function AuthPageInner() {
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mb-3">
               <Zap className="w-6 h-6 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground font-[var(--font-heading)]">CodeX</h1>
+            <h1 className="text-2xl font-bold text-foreground font-[var(--font-heading)]">Promptify</h1>
           </div>
 
           <div className="mb-8 hidden md:block">
             <h2 className="text-2xl font-bold text-foreground font-[var(--font-heading)]">Welcome back</h2>
-            <p className="text-muted-foreground text-sm mt-1">Sign in to continue to CodeX.</p>
+            <p className="text-muted-foreground text-sm mt-1">Sign in to continue to Promptify.</p>
           </div>
 
           <Button
