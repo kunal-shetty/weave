@@ -121,7 +121,7 @@ export function HomeShell() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-white/20 to-white/5 border border-sidebar-border grid place-items-center">
               <Sparkles className="w-4 h-4 text-sidebar-foreground" />
             </div>
-            <span className="text-sm font-semibold text-sidebar-foreground font-[var(--font-heading)]">CodeX</span>
+            <span className="text-sm font-semibold text-sidebar-foreground font-[var(--font-heading)]">Promptify</span>
           </div>
 
           {profile ? (
@@ -150,7 +150,7 @@ export function HomeShell() {
         </div>
 
         {/* Projects list */}
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto scrollbar-none p-3">
           <div className="flex items-center justify-between px-1.5 mb-2">
             <div className="flex items-center gap-1.5">
               <Layers className="w-3 h-3 text-muted-foreground" />
