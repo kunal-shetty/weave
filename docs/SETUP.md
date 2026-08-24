@@ -1,4 +1,4 @@
-# CodeX — Setup Guide
+# Promptify — Setup Guide
 
 ## Prerequisites
 
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS field_kv (
 # Terminal 1 — Backend
 cd backend
 npm run dev
-# 🚀 CodeX API running on http://localhost:4000
+# 🚀 Promptify API running on http://localhost:4000
 
 # Terminal 2 — Frontend
 cd frontend
