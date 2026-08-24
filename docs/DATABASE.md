@@ -1,8 +1,8 @@
-# CodeX — Database Schema
+# Promptify — Database Schema
 
 ## Overview
 
-CodeX uses a dual-store architecture:
+Promptify uses a dual-store architecture:
 
 1. **MongoDB** — Primary store for all application documents (Sections, Elements, ReviewItems, Sessions, WorkspaceMembers)
 2. **Supabase (PostgreSQL)** — Mirrors lightweight metadata for fast KV lookups, stores auth data, and provides real-time capabilities
