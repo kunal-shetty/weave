@@ -24,7 +24,7 @@ router.post('/generate', async (req, res) => {
 
   try {
     // Build the system instruction
-    const systemText = `You are CodeX, an AI that generates UI sections as plain HTML.
+    const systemText = `You are Promptify, an AI that generates UI sections as plain HTML.
 
 CRITICAL RULES:
 - Output ONLY raw HTML with inline <style> tags or inline style attributes — NO React, NO JSX, NO JavaScript
@@ -33,7 +33,7 @@ CRITICAL RULES:
 - Make it responsive and visually polished
 - Use modern CSS: gradients, shadows, border-radius, backdrop-filter, flexbox, grid
 - If images are provided as base64, embed them with <img src="data:image/...;base64,..."> tags
-- Keep the design dark-themed (black/gray background, white text) to match the CodeX app
+- Keep the design dark-themed (black/gray background, white text) to match the Promptify app
 - Make it production-ready and visually impressive
 - Do NOT include <!DOCTYPE>, <html>, <head>, or <body> tags — just the content HTML and styles
 - Do NOT use markdown code fences in your output — just the raw HTML
@@ -46,12 +46,17 @@ CMS EDITABILITY (mandatory):
 - After the visible content, include this single style rule so editors can see what's editable on hover:
   <style>[id^="field-"]{outline:1px dashed transparent;transition:outline-color .15s ease}[id^="field-"]:hover{outline-color:rgba(255,255,255,.35)}</style>
 
-FOLLOW-UP INSTRUCTIONS:
-- When modifying existing HTML, preserve ALL existing id="field-*" attributes exactly as they are
+FOLLOW-UP INSTRUCTIONS (when existing HTML is provided):
+- You will receive the current HTML from the preview alongside the user's new instruction
+- Do NOT rebuild the page from scratch — make ONLY the specific changes the user requested
+- Preserve ALL existing structure, styles, classes, and layout unless explicitly told to change them
+- Preserve ALL existing id="field-*" attributes exactly as they are
 - Do NOT generate new field IDs — keep the existing ones
-- Only change the content/text within elements, or add/remove elements as requested
-- If the user asks to change colors, layout, or styling, apply those changes to the existing structure
-- Output the COMPLETE updated HTML — not a diff, not a partial fragment`;
+- Apply the requested change surgically: if they say 'change the headline', change ONLY the headline
+- If they say 'make the button red', change ONLY the button color — leave everything else untouched
+- If they say 'add a section below', insert it at the right position without disturbing the rest
+- Output the COMPLETE updated HTML (the full file), but the DIFFERENCE from the original should be minimal and targeted
+- Think of it like a code review: only touch what was asked, keep everything else identical`;
 
     // Build the contents array for multi-turn conversation
     const contents = [];
@@ -65,22 +70,20 @@ FOLLOW-UP INSTRUCTIONS:
       }
     }
 
-    // If there's current HTML, add it as context before the new prompt
+    // If there's current HTML, add it as context. Fold it into the LAST user turn
+    // when possible — never create two consecutive user turns, which Gemini rejects.
     if (currentHtml && currentHtml.trim()) {
-      // Ensure we end with a user message (required by Gemini)
-      if (contents.length === 0 || contents[contents.length - 1].role === 'model') {
-        contents.push({
-          role: 'user',
-          parts: [{ text: `[Current HTML in preview]\n\`\`\`html\n${currentHtml}\n\`\`\`\n\nThis is the HTML currently displayed in the preview. Keep this as context for the next instruction.` }],
-        });
+      const htmlContext = `[Current HTML in preview]\n\`\`\`html\n${currentHtml}\n\`\`\`\n\nThis is the HTML currently displayed in the preview. Keep this as context for the next instruction.`;
+      if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+        contents[contents.length - 1].parts[0].text += `\n\n${htmlContext}`;
       } else {
-        // Append to the last user message
-        const lastUserIdx = contents.length - 1;
-        contents[lastUserIdx].parts[0].text += `\n\n[Current HTML in preview]\n\`\`\`html\n${currentHtml}\n\`\`\`\n\nThis is the HTML currently displayed in the preview. Keep this as context for the next instruction.`;
+        contents.push({ role: 'user', parts: [{ text: htmlContext }] });
       }
     }
 
-    // Add the actual user prompt as the final turn
+    // Add the actual user prompt as the final turn. Fold it into the previous
+    // user turn if one exists (so the conversation ends on user → ready for
+    // the next model response), otherwise create a fresh user turn.
     const userParts = [{ text: prompt }];
 
     // Attach base64 images if provided
@@ -104,7 +107,14 @@ FOLLOW-UP INSTRUCTIONS:
       }
     }
 
-    contents.push({ role: 'user', parts: userParts });
+    if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+      contents[contents.length - 1].parts = [
+        ...contents[contents.length - 1].parts,
+        ...userParts,
+      ];
+    } else {
+      contents.push({ role: 'user', parts: userParts });
+    }
 
     const geminiPayload = {
       contents,
