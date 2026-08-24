@@ -1,7 +1,7 @@
 {
   "name": "codex-backend",
   "version": "1.0.0",
-  "description": "CodeX AI-Assisted UI Generation Backend",
+  "description": "Promptify AI-Assisted UI Generation Backend",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
