@@ -1,4 +1,4 @@
-# CodeX — API Reference
+# Promptify — API Reference
 
 All endpoints are prefixed with the backend URL (default: `http://localhost:4000`).
 
