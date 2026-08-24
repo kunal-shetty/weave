@@ -7,11 +7,12 @@ import { fetchElementsByPage } from '@/store/slices/cmsSlice';
 import { useSocket } from '@/hooks/useSocket';
 import { CMSEditor } from './CMSEditor';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/components/ui/use-mobile';
 import { toast } from 'sonner';
 import { buildPreviewHtml } from '@/lib/buildPreviewHtml';
 import {
   Monitor, Smartphone, Edit3, Eye, RefreshCw,
-  CheckCircle, XCircle, Clock, Wifi, WifiOff, ArrowLeft,
+  CheckCircle, XCircle, Clock, ArrowLeft, X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -41,7 +42,7 @@ interface PreviewShellProps {
 export function PreviewShell({ pageName }: PreviewShellProps) {
   const dispatch = useDispatch<AppDispatch>();
   const lastJob = useSelector((s: RootState) => s.studio.lastJob);
-  const allSections = useSelector((s: RootState) => s.cms.allSections);
+  const isMobile = useIsMobile();
 
   const [sections, setSections] = useState<Section[]>([]);
   const [activeSection, setActiveSection] = useState<Section | null>(null);
@@ -129,19 +130,19 @@ export function PreviewShell({ pageName }: PreviewShellProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
-      <header className="flex items-center gap-3 px-4 py-3 border-b border-border/50 backdrop-blur-sm bg-background/30 flex-wrap">
+      <header className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-3 border-b border-border/50 backdrop-blur-sm bg-background/30 flex-wrap">
         <Link href="/generate">
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-            <ArrowLeft className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-7 sm:h-8 w-7 sm:w-8 shrink-0">
+            <ArrowLeft className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </Button>
         </Link>
 
         {/* Page / Section picker */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-muted-foreground truncate">{pageName}</span>
-          <span className="text-muted-foreground">/</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground truncate max-w-[80px] sm:max-w-none">{pageName}</span>
+          <span className="text-muted-foreground hidden sm:inline">/</span>
           <select
-            className="bg-secondary border border-border rounded-lg px-2 py-1 text-sm text-foreground"
+            className="bg-secondary border border-border rounded-lg px-1.5 sm:px-2 py-1 text-xs sm:text-sm text-foreground max-w-[120px] sm:max-w-none"
             value={activeSection?.sectionId || ''}
             onChange={(e) => {
               const s = sections.find((x) => x.sectionId === e.target.value);
@@ -157,43 +158,43 @@ export function PreviewShell({ pageName }: PreviewShellProps) {
 
         {/* Status badge */}
         {statusCfg && StatusIcon && (
-          <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${statusCfg.color}`}>
+          <span className={`hidden sm:flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${statusCfg.color}`}>
             <StatusIcon className="w-3 h-3" />
             {statusCfg.label}
           </span>
         )}
 
         {activeSection && (
-          <span className="text-xs text-muted-foreground">v{activeSection.variations}</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">v{activeSection.variations}</span>
         )}
 
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-wrap">
           {/* Viewport toggle */}
           <div className="flex items-center bg-secondary rounded-lg p-0.5 border border-border">
             <Button
               variant="ghost"
               size="icon"
-              className={`h-7 w-7 rounded-md ${viewport === 'desktop' ? 'bg-background shadow-sm' : ''}`}
+              className={`h-6 sm:h-7 w-6 sm:w-7 rounded-md ${viewport === 'desktop' ? 'bg-background shadow-sm' : ''}`}
               onClick={() => setViewport('desktop')}
             >
-              <Monitor className="w-4 h-4" />
+              <Monitor className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className={`h-7 w-7 rounded-md ${viewport === 'mobile' ? 'bg-background shadow-sm' : ''}`}
+              className={`h-6 sm:h-7 w-6 sm:w-7 rounded-md ${viewport === 'mobile' ? 'bg-background shadow-sm' : ''}`}
               onClick={() => setViewport('mobile')}
             >
-              <Smartphone className="w-4 h-4" />
+              <Smartphone className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             </Button>
           </div>
 
-          {/* Wireframe overlay toggle */}
+          {/* Wireframe overlay toggle - hidden on mobile */}
           {activeSection?.wireframeUrl && (
             <Button
               variant="ghost"
               size="sm"
-              className={`btn-3d gap-2 border h-8 ${showWireframe ? 'border-primary text-primary bg-primary/10' : 'border-border/50'}`}
+              className={`btn-3d gap-1.5 sm:gap-2 border h-7 sm:h-8 text-xs sm:text-sm hidden sm:flex ${showWireframe ? 'border-primary text-primary bg-primary/10' : 'border-border/50'}`}
               onClick={() => setShowWireframe(!showWireframe)}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -205,17 +206,17 @@ export function PreviewShell({ pageName }: PreviewShellProps) {
           <Button
             variant="ghost"
             size="sm"
-            className={`btn-3d gap-2 border h-8 ${showEditor ? 'border-primary text-primary bg-primary/10' : 'border-border/50'}`}
+            className={`btn-3d gap-1 sm:gap-2 border h-7 sm:h-8 text-xs sm:text-sm ${showEditor ? 'border-primary text-primary bg-primary/10' : 'border-border/50'}`}
             onClick={() => setShowEditor(!showEditor)}
           >
             <Edit3 className="w-3.5 h-3.5" />
-            CMS Editor
+            {isMobile ? '' : 'CMS Editor'}
           </Button>
 
-          {/* Regenerate */}
+          {/* Regenerate - hidden on mobile */}
           <Button
             size="sm"
-            className="btn-3d gap-2 bg-secondary/70 border border-border/50 text-foreground h-8"
+            className="btn-3d gap-1 sm:gap-2 bg-secondary/70 border border-border/50 text-foreground h-7 sm:h-8 text-xs sm:text-sm hidden sm:flex"
             onClick={handleRegenerate}
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -228,20 +229,20 @@ export function PreviewShell({ pageName }: PreviewShellProps) {
               <Button
                 size="sm"
                 disabled={updatingStatus}
-                className="btn-3d gap-2 bg-green-600 hover:bg-green-500 text-white h-8"
+                className="btn-3d gap-1 sm:gap-2 bg-green-600 hover:bg-green-500 text-white h-7 sm:h-8 text-xs sm:text-sm"
                 onClick={() => handleStatusChange('Approved')}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                Approve
+                {isMobile ? '' : 'Approve'}
               </Button>
               <Button
                 size="sm"
                 disabled={updatingStatus}
-                className="btn-3d gap-2 bg-red-700 hover:bg-red-600 text-white h-8"
+                className="btn-3d gap-1 sm:gap-2 bg-red-700 hover:bg-red-600 text-white h-7 sm:h-8 text-xs sm:text-sm"
                 onClick={() => handleStatusChange('Rejected')}
               >
                 <XCircle className="w-3.5 h-3.5" />
-                Reject
+                {isMobile ? '' : 'Reject'}
               </Button>
             </>
           )}
@@ -287,16 +288,16 @@ export function PreviewShell({ pageName }: PreviewShellProps) {
 
 function EmptyPreview({ pageName }: { pageName: string }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-12">
-      <div className="w-16 h-16 rounded-2xl bg-secondary/50 flex items-center justify-center mb-4">
-        <Eye className="w-8 h-8 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 sm:p-12">
+      <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-2xl bg-secondary/50 flex items-center justify-center mb-4">
+        <Eye className="w-6 sm:w-8 h-6 sm:h-8 text-muted-foreground" />
       </div>
-      <h2 className="text-xl font-semibold text-foreground mb-2">No sections yet</h2>
-      <p className="text-muted-foreground mb-6">
+      <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-2">No sections yet</h2>
+      <p className="text-muted-foreground mb-6 text-sm sm:text-base px-4">
         Generate a section for <span className="text-foreground font-medium">"{pageName}"</span> first.
       </p>
       <Link href="/generate">
-        <Button className="btn-3d btn-glow gap-2 bg-gradient-to-br from-primary via-gray-900 to-black text-white">
+        <Button className="btn-3d btn-glow gap-2 bg-gradient-to-br from-primary via-gray-900 to-black text-white text-sm">
           Open Generator Studio
         </Button>
       </Link>
@@ -338,13 +339,13 @@ function LiveSectionPreview({ section, pageName }: { section: Section; pageName:
   return (
     <div className="h-full flex flex-col">
       {/* Section info bar */}
-      <div className="px-4 py-2 border-b border-border/30 flex items-center gap-3 shrink-0">
+      <div className="px-3 sm:px-4 py-2 border-b border-border/30 flex items-center gap-2 sm:gap-3 shrink-0">
         <div
-          className="w-3 h-3 rounded-full"
+          className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full"
           style={{ backgroundColor: section.accentColor }}
         />
-        <span className="text-sm font-medium text-foreground">{section.sectionName}</span>
-        <span className="text-xs text-muted-foreground">— {section.pageName}</span>
+        <span className="text-xs sm:text-sm font-medium text-foreground truncate">{section.sectionName}</span>
+        <span className="text-xs text-muted-foreground hidden sm:inline">— {section.pageName}</span>
         <span className="text-xs text-muted-foreground font-mono">v{section.variations}</span>
       </div>
 
