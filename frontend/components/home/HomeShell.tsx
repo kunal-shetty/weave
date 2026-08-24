@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ChatArea } from '@/components/chat/ChatArea';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
+import { useIsMobile } from '@/components/ui/use-mobile';
 import {
-  Sparkles, ArrowUpRight, LogOut, ChevronRight, Layers, Clock, Plus,
+  Sparkles, ArrowUpRight, LogOut, ChevronRight, Layers, Clock, Plus, Menu, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,8 @@ export function HomeShell() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -86,8 +89,32 @@ export function HomeShell() {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <ShaderBackground />
 
+      {/* Mobile sidebar toggle */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="fixed top-3 left-3 z-50 p-2 rounded-lg bg-sidebar/90 border border-border/50 backdrop-blur-xl text-sidebar-foreground hover:bg-sidebar-accent transition-all"
+          aria-label="Toggle sidebar"
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      )}
+
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Left rail */}
-      <aside className="relative z-10 w-[320px] shrink-0 h-full border-r border-border/50 bg-sidebar/80 backdrop-blur-xl flex flex-col">
+      <aside className={cn(
+        'relative z-40 h-full border-r border-border/50 bg-sidebar/80 backdrop-blur-xl flex flex-col shrink-0 transition-all duration-300',
+        isMobile
+          ? cn('fixed inset-y-0 left-0 w-[320px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full')
+          : 'w-[320px]'
+      )}>
         {/* Profile header */}
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2 mb-4">
@@ -197,7 +224,7 @@ export function HomeShell() {
 
       {/* Right pane — existing prompt area */}
       <main className="relative flex-1 flex flex-col overflow-hidden">
-        <ChatArea />
+        <ChatArea onMenuToggle={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined} />
       </main>
     </div>
   );
