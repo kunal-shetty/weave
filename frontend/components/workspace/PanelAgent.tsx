@@ -79,6 +79,10 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
   const broadcastChatRef = useRef(broadcastChat);
   broadcastChatRef.current = broadcastChat;
 
+  // Real conversation turns to send to Gemini: alternating user prompt + model
+  // HTML response. Kept separate from the noisy status messages in `messages`.
+  const conversationTurnsRef = useRef<Array<{ role: 'user' | 'model'; content: string }>>([]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -114,8 +118,14 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
     const styles = (html.match(/style\s*=/g) || []).length;
     const kb = (new TextEncoder().encode(html).length / 1024).toFixed(1);
     return { lines: lines.length, tags: tags.length, styles, kb };
-  }, []);      const generate = useCallback(
-    async (prompt: string, images: string[] = [], isFollowUp: boolean = false) => {
+  }, []);
+
+  const generate = useCallback(
+    async (
+      prompt: string,
+      images: string[] = [],
+      isFollowUp: boolean = false
+    ) => {
       setIsStreaming(true);
 
       addMessage('agent', isFollowUp ? 'Analysing your follow-up…' : 'Analysing your prompt…');
@@ -137,13 +147,13 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
       await sleep(800 + Math.random() * 500);
       addMessage('agent', isFollowUp ? 'Updating HTML based on context…' : 'Generating HTML & CSS now…');
 
-      // Build conversation history for context
-      const conversationHistory = messages
-        .filter((m) => m.type !== 'status' && m.type !== 'error' && m.type !== 'thinking')
-        .map((m) => ({
-          role: m.role === 'user' ? 'user' : 'agent',
-          content: m.content,
-        }));
+      // Use the real conversation-turn ref (alternating user prompt + model HTML)
+      // so Gemini sees the prior exchange correctly. The ref is updated by the
+      // caller (sendMessage / initial useEffect) BEFORE this function runs, so
+      // the latest prompt is already in there.
+      const conversationHistory = conversationTurnsRef.current
+        .filter((t) => t.content && t.content.trim().length > 0)
+        .map((t) => ({ role: t.role === 'user' ? 'user' : 'agent', content: t.content }));
 
       let accumulated = '';
 
@@ -214,6 +224,13 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
         onPreviewReady(html);
         setCurrentHtml(html);
 
+        // Record the model's actual HTML response in the conversation history
+        // so follow-up prompts have proper alternation (user → model → user).
+        conversationTurnsRef.current = [
+          ...conversationTurnsRef.current,
+          { role: 'model', content: html },
+        ];
+
         await sleep(200);
         addMessage(
           'agent',
@@ -224,6 +241,12 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
       } catch (err) {
         const fallbackHtml = buildFallbackHtml(prompt);
         onPreviewReady(fallbackHtml);
+        setCurrentHtml(fallbackHtml);
+        // Still record the fallback HTML so the next follow-up has context.
+        conversationTurnsRef.current = [
+          ...conversationTurnsRef.current,
+          { role: 'model', content: fallbackHtml },
+        ];
         addMessage(
           'agent',
           `Gemini error (${err instanceof Error ? err.message : 'unknown'}). Showing placeholder. Check GOOGLE_AI_API_KEY in backend .env.`,
@@ -245,11 +268,20 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
 
     // If the parent already loaded saved HTML, surface it without regenerating
     if (initialSavedHtml && initialSavedHtml.trim()) {
+      // Seed the conversation with the prior exchange so a follow-up prompt
+      // has a proper (user → model) history to send to Gemini.
+      conversationTurnsRef.current = [
+        { role: 'user', content: initialPrompt },
+        { role: 'model', content: initialSavedHtml },
+      ];
       addMessage('agent', 'Loaded existing section from database. Preview is ready.', 'status');
       onPreviewReady(initialSavedHtml);
       if (onProgressiveHtml) onProgressiveHtml(initialSavedHtml);
       return;
     }
+
+    // Fresh session — record the initial prompt so the next follow-up sees it.
+    conversationTurnsRef.current = [{ role: 'user', content: initialPrompt }];
 
     const images = (initialFiles || [])
       .filter((f) => f.type.startsWith('image/') && f.base64)
@@ -262,6 +294,14 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
     if (!input.trim() || isStreaming) return;
 
     const userMsg = input.trim();
+
+    // Append the new user turn to the real conversation history BEFORE calling
+    // generate, so the history the backend sees includes this prompt.
+    conversationTurnsRef.current = [
+      ...conversationTurnsRef.current,
+      { role: 'user', content: userMsg },
+    ];
+
     setMessages((prev) => [
       ...prev,
       { id: `user-${Date.now()}`, role: 'user', content: userMsg, timestamp: new Date() },
