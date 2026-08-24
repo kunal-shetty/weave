@@ -73,6 +73,7 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [currentHtml, setCurrentHtml] = useState<string | null>(initialSavedHtml || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialTriggeredRef = useRef(false);
   const broadcastChatRef = useRef(broadcastChat);
@@ -113,13 +114,11 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
     const styles = (html.match(/style\s*=/g) || []).length;
     const kb = (new TextEncoder().encode(html).length / 1024).toFixed(1);
     return { lines: lines.length, tags: tags.length, styles, kb };
-  }, []);
-
-  const generate = useCallback(
+  }, []);      const generate = useCallback(
     async (prompt: string, images: string[] = [], isFollowUp: boolean = false) => {
       setIsStreaming(true);
 
-      addMessage('agent', 'Analysing your prompt…');
+      addMessage('agent', isFollowUp ? 'Analysing your follow-up…' : 'Analysing your prompt…');
       await sleep(1000 + Math.random() * 600);
       addMessage('agent', 'Prompt understood. Preparing generation context…');
       await sleep(600 + Math.random() * 400);
@@ -129,9 +128,22 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
         await sleep(800 + Math.random() * 400);
       }
 
+      if (isFollowUp) {
+        addMessage('agent', 'Loading previous conversation context…');
+        await sleep(400 + Math.random() * 300);
+      }
+
       addMessage('agent', 'Connecting to Gemini…');
       await sleep(800 + Math.random() * 500);
-      addMessage('agent', 'Generating HTML & CSS now…');
+      addMessage('agent', isFollowUp ? 'Updating HTML based on context…' : 'Generating HTML & CSS now…');
+
+      // Build conversation history for context
+      const conversationHistory = messages
+        .filter((m) => m.type !== 'status' && m.type !== 'error' && m.type !== 'thinking')
+        .map((m) => ({
+          role: m.role === 'user' ? 'user' : 'agent',
+          content: m.content,
+        }));
 
       let accumulated = '';
 
@@ -139,7 +151,13 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
         const res = await fetch(`${API}/api/gemini/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, images, model: 'gemini-3.6-flash' }),
+          body: JSON.stringify({
+            prompt,
+            images,
+            model: 'gemini-3.6-flash',
+            history: isFollowUp ? conversationHistory : [],
+            currentHtml: isFollowUp ? currentHtml : null,
+          }),
         });
 
         if (!res.ok) throw new Error(`Backend returned ${res.status}`);
@@ -194,12 +212,13 @@ export const PanelAgent = forwardRef<PanelAgentHandle, {
         });
 
         onPreviewReady(html);
+        setCurrentHtml(html);
 
         await sleep(200);
         addMessage(
           'agent',
           isFollowUp
-            ? 'Preview updated. Need any changes?'
+            ? 'Preview updated with your changes. Need any more adjustments?'
             : 'Section is live in the preview. What would you like to adjust?'
         );
       } catch (err) {
