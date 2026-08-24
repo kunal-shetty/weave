@@ -1,5 +1,5 @@
 -- ============================================================
--- CodeX — Supabase Users Table (Supabase Auth compatible)
+-- Promptify — Supabase Users Table (Supabase Auth compatible)
 -- Run this in the Supabase SQL editor
 -- ============================================================
 
