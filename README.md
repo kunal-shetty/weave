@@ -1,14 +1,14 @@
-# CodeX — AI-Assisted UI Generation Platform
+# Promptify — AI-Assisted UI Generation Platform
 
-### SIH 2026 · Problem Statement PS7 · Team CodeX
+### SIH 2026 · Problem Statement PS7 · Team Promptify
 
 > A CMS-bound UI generator that treats regeneration as a **merge, not a rewrite** — so live content edits never get wiped out when a design changes.
 
 ---
 
-## What CodeX Does
+## What Promptify Does
 
-Give it a **wireframe image**, **existing React code**, or a **natural-language prompt** — or combine all three — and CodeX generates a production-ready, CMS-bound React section with:
+Give it a **wireframe image**, **existing React code**, or a **natural-language prompt** — or combine all three — and Promptify generates a production-ready, CMS-bound React section with:
 
 - **Stable field IDs** — every editable text, image, and button has a unique `fieldId` that survives regeneration
 - **Redux data binding** — sections read content from the Redux store, not hard-coded strings
@@ -175,7 +175,7 @@ npm run seed   # Creates sample sections and elements in MongoDB
 
 ## Problem Statement Compliance
 
-CodeX addresses **PS7: AI-Assisted UI Generation from Wireframe, Code, and Prompt** with:
+Promptify addresses **PS7: AI-Assisted UI Generation from Wireframe, Code, and Prompt** with:
 
 - ✅ All 4 primary objectives (Section 4.1)
 - ✅ All 3 secondary objectives (Section 4.2)
@@ -193,4 +193,4 @@ CodeX addresses **PS7: AI-Assisted UI Generation from Wireframe, Code, and Promp
 
 ## Team
 
-**CodeX** — Smart India Hackathon 2026, Problem Statement PS7
+**Promptify** — Smart India Hackathon 2026, Problem Statement PS7
