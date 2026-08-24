@@ -1,8 +1,8 @@
-# CodeX — Real-Time Collaboration Layer
+# Promptify — Real-Time Collaboration Layer
 
 ## Overview
 
-CodeX uses **Socket.IO** for real-time collaboration. The system supports two types of rooms:
+Promptify uses **Socket.IO** for real-time collaboration. The system supports two types of rooms:
 
 1. **Section rooms** (`section:<id>`) — Legacy CMS live editing (element patches)
 2. **Workspace rooms** (`workspace:<id>`) — Full collaborative workspace (HTML preview, chat, members, reviews)
