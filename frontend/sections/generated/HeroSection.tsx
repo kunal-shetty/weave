@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * HeroSection — Reference output from CodeX generator.
+ * HeroSection — Reference output from Promptify generator.
  *
  * This file demonstrates the exact contract every generated section must follow:
  * - All fieldIds are server-allocated 10-digit strings (never LLM-generated)
