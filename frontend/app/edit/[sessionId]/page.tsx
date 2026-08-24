@@ -5,9 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useIsMobile } from '@/components/ui/use-mobile';
 import {
   ArrowLeft, Save, Eye, Code2, Type, Palette, Layout,
-  CheckCircle2, Loader2, RefreshCw,
+  CheckCircle2, Loader2, RefreshCw, X, Menu,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ShaderBackground } from '@/components/shared/ShaderBackground';
@@ -34,6 +35,7 @@ export default function EditPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = (params?.sessionId as string) || '';
+  const isMobile = useIsMobile();
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [html, setHtml] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export default function EditPage() {
   const [codeValue, setCodeValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [fieldsPanelOpen, setFieldsPanelOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -97,7 +100,6 @@ export default function EditPage() {
   }, [html]);
 
   const extractEditableFields = (htmlContent: string) => {
-    // Match id="field-..." or id='field-...' (either quote style)
     const fieldRegex = /id=["'](field-[^"']+)["'][^>]*>([^<]*)/g;
     const extracted: EditableField[] = [];
     const seen = new Set<string>();
@@ -119,7 +121,6 @@ export default function EditPage() {
   const updateField = (fieldId: string, newValue: string) => {
     setFields((prev) => prev.map((f) => f.id === fieldId ? { ...f, value: newValue } : f));
     if (html) {
-      // Match either quote style
       const regex = new RegExp(`(id=["']${fieldId}["'][^>]*>)([^<]*)`, 'g');
       const updatedHtml = html.replace(regex, `$1${newValue}`);
       setHtml(updatedHtml);
@@ -130,16 +131,13 @@ export default function EditPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save to MongoDB
       await fetch(`${API}/api/sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ htmlContent: codeValue, status: 'edited' }),
       });
-      // Also keep sessionStorage in sync
       sessionStorage.setItem(`codex-preview-${sessionId}`, codeValue);
     } catch {
-      // At minimum save locally
       sessionStorage.setItem(`codex-preview-${sessionId}`, codeValue);
     }
     setSaving(false);
@@ -166,21 +164,21 @@ export default function EditPage() {
       <ShaderBackground />
 
       {/* Header */}
-      <header className="relative z-20 h-14 flex items-center justify-between px-3 shrink-0 border-b border-border/30 backdrop-blur-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/20">
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="relative z-20 h-12 sm:h-14 flex items-center justify-between px-2 sm:px-3 shrink-0 border-b border-border/30 backdrop-blur-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/20">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <Link href={`/workspace/${sessionId}`} className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all">
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
           </Link>
-          <div className="h-5 w-px bg-border/50" />
-          <h1 className="text-xs font-medium text-foreground font-[var(--font-heading)]">CMS Editor</h1>
-          <span className="text-[10px] text-muted-foreground font-mono">· {sessionId}</span>
+          <div className="h-4 sm:h-5 w-px bg-border/50" />
+          <h1 className="text-[10px] sm:text-xs font-medium text-foreground font-[var(--font-heading)]">CMS Editor</h1>
+          <span className="text-[9px] sm:text-[10px] text-muted-foreground font-mono hidden sm:inline">· {sessionId}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex items-center p-0.5 rounded-lg bg-secondary/50 border border-border/30">
             {(['visual', 'code'] as EditMode[]).map((mode) => (
               <button key={mode} onClick={() => setEditMode(mode)}
-                className={cn('px-3 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer',
+                className={cn('px-2 sm:px-3 py-1.5 rounded-md text-[9px] sm:text-[10px] font-medium transition-all cursor-pointer',
                   editMode === mode ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground')}>
                 {mode === 'visual' ? <Type className="w-3 h-3 inline mr-1" /> : <Code2 className="w-3 h-3 inline mr-1" />}
                 {mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -188,60 +186,84 @@ export default function EditPage() {
             ))}
           </div>
           <Button size="sm" onClick={handleSave} disabled={saving}
-            className="h-8 text-xs btn-3d gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
+            className="h-7 sm:h-8 text-[10px] sm:text-xs btn-3d gap-1 sm:gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : saved ? <CheckCircle2 className="w-3 h-3" /> : <Save className="w-3 h-3" />}
             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
           </Button>
+          {/* Mobile fields toggle */}
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 sm:hidden text-muted-foreground hover:text-foreground"
+              onClick={() => setFieldsPanelOpen(!fieldsPanelOpen)}
+            >
+              {fieldsPanelOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </Button>
+          )}
         </div>
       </header>
 
       {/* Content */}
       <div className="relative z-10 flex-1 flex overflow-hidden">
         {/* Left: Fields panel */}
-        <div className="w-80 shrink-0 border-r border-border/30 overflow-y-auto p-4 space-y-4 bg-background/30 backdrop-blur-sm">
+        <div className={cn(
+          'shrink-0 border-r border-border/30 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-background/30 backdrop-blur-sm',
+          isMobile
+            ? cn('absolute inset-y-0 left-0 z-30 w-72 transition-transform duration-300', fieldsPanelOpen ? 'translate-x-0' : '-translate-x-full')
+            : 'w-72'
+        )}>
           <div className="space-y-1">
-            <h2 className="text-sm font-semibold text-foreground font-[var(--font-heading)]">Editable Fields</h2>
-            <p className="text-[10px] text-muted-foreground">{fields.length} fields detected</p>
+            <h2 className="text-xs sm:text-sm font-semibold text-foreground font-[var(--font-heading)]">Editable Fields</h2>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground">{fields.length} fields detected</p>
           </div>
 
           {fields.map((field) => (
             <div key={field.id} className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{field.label}</label>
+              <label className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{field.label}</label>
               <Input
                 value={field.value}
                 onChange={(e) => updateField(field.id, e.target.value)}
-                className="h-8 text-xs bg-input border-border text-foreground"
+                className="h-7 sm:h-8 text-[10px] sm:text-xs bg-input border-border text-foreground"
               />
               {field.value !== field.originalValue && (
-                <p className="text-[9px] text-amber-400">Modified from: "{field.originalValue}"</p>
+                <p className="text-[8px] sm:text-[9px] text-amber-400">Modified from: &quot;{field.originalValue}&quot;</p>
               )}
             </div>
           ))}
 
           {fields.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-xs text-muted-foreground">No editable fields detected in the HTML.</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-1">Add id="field-*" attributes to make elements editable.</p>
+            <div className="text-center py-6 sm:py-8">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">No editable fields detected in the HTML.</p>
+              <p className="text-[8px] sm:text-[10px] text-muted-foreground/60 mt-1">Add id=&quot;field-*&quot; attributes to make elements editable.</p>
             </div>
           )}
 
-          <Button variant="outline" size="sm" className="w-full h-8 text-[10px] gap-1.5" onClick={() => extractEditableFields(codeValue)}>
+          <Button variant="outline" size="sm" className="w-full h-7 sm:h-8 text-[9px] sm:text-[10px] gap-1.5" onClick={() => extractEditableFields(codeValue)}>
             <RefreshCw className="w-3 h-3" /> Re-scan fields
           </Button>
         </div>
 
+        {/* Mobile fields overlay backdrop */}
+        {isMobile && fieldsPanelOpen && (
+          <div
+            className="absolute inset-0 z-20 bg-black/50"
+            onClick={() => setFieldsPanelOpen(false)}
+          />
+        )}
+
         {/* Right: Preview */}
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 overflow-hidden p-2 sm:p-4">
           {editMode === 'visual' ? (
-            <div className="h-full rounded-2xl overflow-hidden border border-border/50 bg-background/60">
+            <div className="h-full rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 bg-background/60">
               <iframe ref={iframeRef} className="w-full h-full" style={{ border: 'none' }} title="Preview" />
             </div>
           ) : (
-            <div className="h-full rounded-2xl overflow-hidden border border-border/50 bg-background/30 backdrop-blur-sm">
+            <div className="h-full rounded-xl sm:rounded-2xl overflow-hidden border border-border/50 bg-background/30 backdrop-blur-sm">
               <textarea
                 value={codeValue}
                 onChange={(e) => handleCodeChange(e.target.value)}
-                className="w-full h-full bg-transparent border-none outline-none resize-none text-foreground/80 text-xs font-mono p-4 leading-relaxed"
+                className="w-full h-full bg-transparent border-none outline-none resize-none text-foreground/80 text-[10px] sm:text-xs font-mono p-3 sm:p-4 leading-relaxed"
                 spellCheck={false}
               />
             </div>
