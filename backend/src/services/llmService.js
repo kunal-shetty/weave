@@ -6,7 +6,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  * Build the system prompt for the generation engine.
  */
 function buildSystemPrompt(ids) {
-  return `You are a React/JSX code generator for the CodeX CMS system.
+  return `You are a React/JSX code generator for the Promptify CMS system.
 You generate a SINGLE React functional component for a CMS-bound section.
 
 RULES (mandatory):
