@@ -1,4 +1,4 @@
-# CodeX — Acceptance Checklist Verification
+# Promptify — Acceptance Checklist Verification
 
 > Source: Section 24 of PS7 — AI-Assisted UI Generation from Wireframe, Code, and Prompt
 > Each item verified against the actual codebase with file references.
