@@ -37,7 +37,7 @@ export function PanelPreview({ previewHtml, sessionId }: { previewHtml: string |
 
   const openInNewTab = () => {
     if (!previewHtml) return;
-    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CodeX Preview</title><style>html,body{margin:0;padding:0;min-height:100%;background:#0a0a0a;color:#fff;font-family:system-ui,-apple-system,sans-serif}</style></head><body style="padding:2rem">${previewHtml}</body></html>`;
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Promptify Preview</title><style>html,body{margin:0;padding:0;min-height:100%;background:#0a0a0a;color:#fff;font-family:system-ui,-apple-system,sans-serif}</style></head><body style="padding:2rem">${previewHtml}</body></html>`;
     const url = `data:text/html;charset=utf-8,${encodeURIComponent(full)}`;
     window.open(url, '_blank');
   };
